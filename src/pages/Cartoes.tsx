@@ -141,7 +141,7 @@ export function Cartoes() {
                 <div className="mt-4 flex items-end justify-between text-white">
                   <div>
                     <p className="text-xs text-white/70">Limite disponível</p>
-                    <p className="text-xl font-bold">{formatCurrency(available)}</p>
+                    <p className="text-sm font-medium">{formatCurrency(available)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-white/70">Limite total</p>
@@ -157,7 +157,7 @@ export function Cartoes() {
               <div className="flex items-center justify-between border-b border-slate-100 p-4">
                 <div>
                   <p className="text-xs text-[var(--color-ink-faint)]">Fatura de {formatMonthLabel(month)}</p>
-                  <p className="mt-0.5 text-[15px] font-semibold text-[var(--color-ink)]">{formatCurrency(invoiceTotal)}</p>
+                  <p className="mt-0.5 text-2xl font-bold text-[var(--color-ink)]">{formatCurrency(invoiceTotal)}</p>
                 </div>
                 {invoiceTotal > 0 && (
                   <button
