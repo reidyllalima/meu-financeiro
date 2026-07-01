@@ -10,7 +10,7 @@ export function AppShell() {
     <div className="min-h-dvh bg-[var(--color-bg)]">
       <Sidebar />
       <Toast />
-      <main className="pb-24 md:ml-64 md:pb-10">
+      <main className="pb-32 md:ml-64 md:pb-10">
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6 md:px-8">
           <Outlet />
         </div>
