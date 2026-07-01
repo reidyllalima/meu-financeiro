@@ -116,19 +116,22 @@ export function Previsao() {
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: card.color }} />
                       <span className="text-sm font-medium text-[var(--color-ink)]">{card.name}</span>
                     </div>
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                      {forecast.map((f, monthIndex) => {
-                        const total = cardForecast[monthIndex][cardIndex].total;
-                        return (
-                          <div
-                            key={monthIndex}
-                            className="min-w-[92px] shrink-0 rounded-xl bg-slate-50 px-3 py-2 text-center"
-                          >
-                            <p className="text-xs text-[var(--color-ink-faint)]">{formatMonthShort(f.monthKey)}</p>
-                            <p className="mt-0.5 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(total)}</p>
-                          </div>
-                        );
-                      })}
+                    <div className="relative -mx-4 sm:-mx-5">
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-5">
+                        {forecast.map((f, monthIndex) => {
+                          const total = cardForecast[monthIndex][cardIndex].total;
+                          return (
+                            <div
+                              key={monthIndex}
+                              className="min-w-[92px] shrink-0 rounded-xl bg-slate-50 px-3 py-2 text-center"
+                            >
+                              <p className="text-xs text-[var(--color-ink-faint)]">{formatMonthShort(f.monthKey)}</p>
+                              <p className="mt-0.5 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(total)}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--color-surface)] to-transparent" />
                     </div>
                   </div>
                 ))}
