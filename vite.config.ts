@@ -17,7 +17,7 @@ export default defineConfig({
         name: 'Meu Financeiro — Controle Financeiro Pessoal',
         short_name: 'Meu Financeiro',
         description:
-          'Controle financeiro pessoal simples, rápido e 100% offline. Seus dados ficam só no seu dispositivo.',
+          'Controle financeiro pessoal simples e rápido, com seus dados sincronizados na nuvem entre seus dispositivos.',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

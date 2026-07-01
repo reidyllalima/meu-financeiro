@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { Download, Upload, AlertTriangle } from 'lucide-react';
+import { Download, Upload, AlertTriangle, LogOut } from 'lucide-react';
 import { Panel } from '../../components/ui/Panel';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useStore } from '../../store/useStore';
 import { useUiStore } from '../../store/useUiStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { downloadBackup, parseBackupFile, readFileAsText } from '../../lib/backup';
 
 export function BackupSection() {
@@ -12,6 +13,8 @@ export function BackupSection() {
   const importState = useStore((s) => s.importState);
   const resetAllData = useStore((s) => s.resetAllData);
   const showToast = useUiStore((s) => s.showToast);
+  const user = useAuthStore((s) => s.user);
+  const logOut = useAuthStore((s) => s.logOut);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -37,9 +40,21 @@ export function BackupSection() {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <h2 className="font-semibold text-[var(--color-ink)]">Backup dos dados</h2>
-        <p className="text-xs text-[var(--color-ink-faint)]">Seus dados ficam só neste dispositivo — faça backup com frequência</p>
+        <h2 className="font-semibold text-[var(--color-ink)]">Conta e backup</h2>
+        <p className="text-xs text-[var(--color-ink-faint)]">Seus dados ficam salvos na nuvem, vinculados à sua conta Google</p>
       </div>
+
+      {user && (
+        <Panel className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-[var(--color-ink)]">Conectado como</p>
+            <p className="text-xs text-[var(--color-ink-faint)]">{user.email}</p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => void logOut()}>
+            <LogOut className="h-4 w-4" /> Sair
+          </Button>
+        </Panel>
+      )}
 
       <Panel className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
@@ -78,7 +93,7 @@ export function BackupSection() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-[var(--color-danger-500)]">Apagar todos os dados</p>
-            <p className="text-xs text-[var(--color-ink-faint)]">Remove tudo permanentemente deste dispositivo</p>
+            <p className="text-xs text-[var(--color-ink-faint)]">Remove tudo permanentemente da nuvem e de todos os seus dispositivos</p>
           </div>
           <Button size="sm" variant="danger" onClick={() => setConfirmReset(true)}>
             <AlertTriangle className="h-4 w-4" /> Apagar

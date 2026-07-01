@@ -1,23 +1,59 @@
 # 💰 Meu Financeiro — Controle Financeiro Pessoal
 
-Aplicativo web de controle financeiro pessoal, instalável como app (PWA), **100% offline e privado**:
+Aplicativo web de controle financeiro pessoal, instalável como app (PWA):
 
-- Não faz nenhuma chamada de rede, não tem backend, não tem login.
-- Não se conecta a bancos, cartões ou qualquer serviço externo (Open Finance, APIs, etc).
-- Todos os dados ficam salvos **apenas no seu navegador** (`localStorage`), no seu computador ou celular.
-- Funciona totalmente offline depois do primeiro carregamento (service worker).
+- Login com sua conta Google, para identificar quem é o dono dos dados.
+- Todos os dados ficam salvos na sua conta, num banco de dados na nuvem (Firebase/Firestore, da Google), e sincronizam automaticamente entre todos os seus dispositivos.
+- Continua funcionando offline (o app e um cache local dos dados carregam mesmo sem internet); as mudanças feitas offline sincronizam sozinhas quando a conexão voltar.
+- Não se conecta a bancos, cartões ou qualquer serviço externo (Open Finance, APIs, etc) além do próprio Firebase.
 - Pode ser "instalado" na tela inicial do celular ou como app no computador.
 
 ## Stack
 
 - [Vite](https://vite.dev/) + [React 19](https://react.dev/) + TypeScript
 - [Tailwind CSS v4](https://tailwindcss.com/) para o visual
-- [Zustand](https://zustand.docs.pmnd.rs/) com persistência em `localStorage`
+- [Zustand](https://zustand.docs.pmnd.rs/) para o estado local (com cache em `localStorage`)
+- [Firebase](https://firebase.google.com/) (Authentication com Google + Firestore) para login e sincronização na nuvem
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) (manifest + service worker via Workbox)
 - [react-router-dom](https://reactrouter.com/) (`HashRouter`, funciona em qualquer subcaminho sem configuração)
 - [Recharts](https://recharts.org/) para os gráficos
 - [date-fns](https://date-fns.org/) para cálculo de datas e faturas
 - [lucide-react](https://lucide.dev/) para ícones
+
+## Configurando o Firebase
+
+O app precisa de um projeto Firebase próprio (gratuito) para funcionar:
+
+1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com/).
+2. Em **Criação > Authentication**, habilite o provedor **Google**.
+3. Em **Criação > Firestore Database**, crie o banco (modo produção) e, em **Regras**, cole:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /meta/registry {
+         allow read: if request.auth != null;
+         allow create: if false;
+         allow update: if request.auth != null
+           && request.auth.uid in request.resource.data.uids
+           && !(request.auth.uid in resource.data.uids)
+           && request.resource.data.uids.size() == resource.data.uids.size() + 1
+           && request.resource.data.uids.size() <= 5;
+       }
+
+       match /users/{uid} {
+         allow read, write: if request.auth != null
+           && request.auth.uid == uid
+           && uid in get(/databases/$(database)/documents/meta/registry).data.uids;
+       }
+     }
+   }
+   ```
+   Essas regras limitam o app a no máximo 5 contas Google distintas (campo `uids` do documento `meta/registry`) — depois disso, novos logins ficam bloqueados. Ajuste o número `5` (em dois lugares) se quiser outro teto.
+4. Ainda no Firestore, crie manualmente a coleção `meta` com o documento `registry` contendo um campo `uids` do tipo array, já com o seu próprio UID (veja em Authentication > Users, coluna "User UID", depois de logar pela primeira vez).
+5. Em **Configurações do projeto > Seus apps**, registre um app Web e copie as chaves (`apiKey`, `authDomain`, etc).
+6. Copie `.env.example` para `.env.local` e preencha com essas chaves.
+7. Se for usar o deploy automático via GitHub Actions, cadastre as mesmas chaves como **Secrets** do repositório (Settings > Secrets and variables > Actions), com os mesmos nomes das variáveis `VITE_FIREBASE_*`.
 
 ## Rodando localmente
 
@@ -80,8 +116,9 @@ Evolução mensal, comparação entre meses, gastos por categoria e por cartão.
 
 ## Privacidade
 
-- Nenhuma requisição de rede é feita pelo app além de carregar os arquivos estáticos (confira na aba "Network" do DevTools).
 - Nenhuma integração bancária, senha ou dado sensível de cartão (número, CVV) é solicitado — o app guarda apenas nome, limite e datas de fechamento/vencimento, para fins de cálculo de faturas.
-- Todos os dados vivem em `localStorage`, no seu dispositivo. Para apagar tudo, use "Apagar todos os dados" em Configurações → Backup.
+- Seus dados ficam no Firestore (Google Cloud), dentro do seu próprio projeto Firebase, protegidos por regras de segurança que só permitem leitura/escrita para a sua conta logada.
+- Um cache local (`localStorage` + cache offline do Firestore) mantém o app rápido e funcional mesmo sem internet; as mudanças sincronizam com a nuvem assim que a conexão volta.
+- Para apagar tudo (nuvem e dispositivos), use "Apagar todos os dados" em Configurações → Conta e backup.
 
-⚠️ **Faça backups regularmente** (Configurações → Backup → Exportar): como os dados ficam só no navegador, eles podem ser perdidos se você limpar o cache, trocar de navegador ou reinstalar o sistema.
+💡 Mesmo com a sincronização na nuvem, vale manter o hábito de exportar um backup `.json` (Configurações → Conta e backup → Exportar) de vez em quando.
