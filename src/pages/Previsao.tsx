@@ -4,7 +4,7 @@ import { LineChart as LineChartIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useStore } from '../store/useStore';
-import { buildForecast, formatCurrency, formatMonthLabel, formatMonthShort } from '../lib/calc';
+import { buildForecast, cardTotalsForMonth, formatCurrency, formatMonthLabel, formatMonthShort } from '../lib/calc';
 
 const MONTHS_AHEAD = 6;
 
@@ -12,10 +12,16 @@ export function Previsao() {
   const incomes = useStore((s) => s.incomes);
   const cardPurchases = useStore((s) => s.cardPurchases);
   const bills = useStore((s) => s.bills);
+  const cards = useStore((s) => s.cards);
 
   const forecast = useMemo(
     () => buildForecast(incomes, cardPurchases, bills, MONTHS_AHEAD),
     [incomes, cardPurchases, bills],
+  );
+
+  const cardForecast = useMemo(
+    () => forecast.map((f) => cardTotalsForMonth(cardPurchases, cards, f.monthKey)),
+    [forecast, cardPurchases, cards],
   );
 
   const chartData = forecast.map((f) => ({
@@ -84,6 +90,36 @@ export function Previsao() {
               </Panel>
             ))}
           </div>
+
+          {cards.length > 0 && (
+            <Panel>
+              <p className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Previsão de faturas por cartão</p>
+              <div className="flex flex-col gap-4">
+                {cards.map((card, cardIndex) => (
+                  <div key={card.id}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: card.color }} />
+                      <span className="text-sm font-medium text-[var(--color-ink)]">{card.name}</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                      {forecast.map((f, monthIndex) => {
+                        const total = cardForecast[monthIndex][cardIndex].total;
+                        return (
+                          <div
+                            key={monthIndex}
+                            className="min-w-[92px] shrink-0 rounded-xl bg-slate-50 px-3 py-2 text-center"
+                          >
+                            <p className="text-xs text-[var(--color-ink-faint)]">{formatMonthShort(f.monthKey)}</p>
+                            <p className="mt-0.5 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(total)}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
         </>
       )}
     </div>
