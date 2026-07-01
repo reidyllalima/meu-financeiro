@@ -65,21 +65,25 @@ export function BillsSection() {
       ) : (
         <Panel padded={false} className="divide-y divide-slate-100">
           {bills.map((bill) => (
-            <div key={bill.id} className="flex items-center gap-3 px-4 py-3">
+            <div key={bill.id} className="flex items-start gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[var(--color-ink)]">{bill.description}</p>
-                <p className="text-xs text-[var(--color-ink-faint)]">
+                <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{bill.description}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-ink-faint)]">
                   {bill.recurring ? 'Recorrente (todo mês)' : `Única · ${formatMonthLabel({ month: bill.month!, year: bill.year! })}`}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(bill.amount)}</p>
-              {bill.recurring && <Toggle checked={bill.active} onChange={(v) => updateBill(bill.id, { active: v })} />}
-              <button
-                onClick={() => setPendingDeleteId(bill.id)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(bill.amount)}</p>
+                <div className="flex items-center gap-1">
+                  {bill.recurring && <Toggle checked={bill.active} onChange={(v) => updateBill(bill.id, { active: v })} />}
+                  <button
+                    onClick={() => setPendingDeleteId(bill.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </Panel>

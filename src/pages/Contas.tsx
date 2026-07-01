@@ -203,38 +203,40 @@ function ChecklistRow({ item, onToggle, onDelete }: { item: ChecklistItem; onTog
   const iconColor = item.kind === 'invoice' ? '#0f172a' : (category?.color ?? '#94a3b8');
 
   return (
-    <div className="group flex items-center gap-3 px-4 py-3">
+    <div className="flex items-start gap-3 px-4 py-3">
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
         style={{ backgroundColor: `${iconColor}1A` }}
       >
         <Icon className="h-[18px] w-[18px]" style={{ color: iconColor }} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14.5px] font-medium text-[var(--color-ink)]">{item.description}</p>
-        {item.badge && <p className="text-xs text-[var(--color-ink-faint)]">Parcela {item.badge}</p>}
-      </div>
-      <p className="shrink-0 text-[14.5px] font-semibold text-[var(--color-ink)]">{formatCurrency(item.amount)}</p>
-      <button
-        onClick={onToggle}
-        className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-          item.paid
-            ? 'bg-[var(--color-brand-100)] text-[var(--color-brand-700)]'
-            : 'bg-[var(--color-danger-50)] text-[var(--color-danger-500)]'
-        }`}
-      >
-        {item.paid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-        {item.paid ? 'Pago' : 'Pendente'}
-      </button>
-      {onDelete && (
+        <p className="break-words text-[14.5px] font-medium leading-snug text-[var(--color-ink)]">{item.description}</p>
+        {item.badge && <p className="mt-0.5 text-xs text-[var(--color-ink-faint)]">Parcela {item.badge}</p>}
         <button
-          onClick={onDelete}
-          className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-faint)] opacity-0 transition-opacity hover:bg-red-50 hover:text-[var(--color-danger-500)] group-hover:opacity-100 focus:opacity-100"
-          aria-label="Remover"
+          onClick={onToggle}
+          className={`mt-2 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+            item.paid
+              ? 'bg-[var(--color-brand-100)] text-[var(--color-brand-700)]'
+              : 'bg-[var(--color-danger-50)] text-[var(--color-danger-500)]'
+          }`}
         >
-          <Trash2 className="h-4 w-4" />
+          {item.paid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+          {item.paid ? 'Pago' : 'Pendente'}
         </button>
-      )}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <p className="text-[14.5px] font-semibold text-[var(--color-ink)]">{formatCurrency(item.amount)}</p>
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+            aria-label="Remover"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

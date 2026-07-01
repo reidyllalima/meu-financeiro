@@ -78,20 +78,24 @@ export function IncomesSection() {
       ) : (
         <Panel padded={false} className="divide-y divide-slate-100">
           {incomes.map((inc) => (
-            <div key={inc.id} className="flex items-center gap-3 px-4 py-3">
+            <div key={inc.id} className="flex items-start gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[var(--color-ink)]">{inc.description}</p>
-                <p className="text-xs text-[var(--color-ink-faint)]">
+                <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{inc.description}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-ink-faint)]">
                   {inc.recurring ? 'Recorrente (todo mês)' : `Pontual · ${formatMonthLabel({ month: inc.month!, year: inc.year! })}`}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-[var(--color-brand-600)]">{formatCurrency(inc.amount)}</p>
-              <button onClick={() => openEdit(inc)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100">
-                <Pencil className="h-4 w-4" />
-              </button>
-              <button onClick={() => setPendingDeleteId(inc.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <p className="text-sm font-semibold text-[var(--color-brand-600)]">{formatCurrency(inc.amount)}</p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => openEdit(inc)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setPendingDeleteId(inc.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </Panel>

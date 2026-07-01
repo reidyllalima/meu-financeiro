@@ -13,7 +13,7 @@ import { CARD_COLORS } from '../../lib/categories';
 import type { CreditCard as CreditCardType } from '../../types';
 
 function emptyForm() {
-  return { name: '', limit: 0, closingDay: 1, dueDay: 10, color: CARD_COLORS[0] };
+  return { name: '', limit: 0, closingDay: '' as number | '', dueDay: '' as number | '', color: CARD_COLORS[0] };
 }
 
 export function CardsSection() {
@@ -42,12 +42,13 @@ export function CardsSection() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || form.limit <= 0) return;
+    if (!form.name.trim() || form.limit <= 0 || !form.closingDay || !form.dueDay) return;
+    const data = { ...form, closingDay: Number(form.closingDay), dueDay: Number(form.dueDay) };
     if (editingId) {
-      updateCard(editingId, form);
+      updateCard(editingId, data);
       showToast('Cartão atualizado');
     } else {
-      addCard(form);
+      addCard(data);
       showToast('Cartão cadastrado');
     }
     setSheetOpen(false);
@@ -70,20 +71,22 @@ export function CardsSection() {
       ) : (
         <Panel padded={false} className="divide-y divide-slate-100">
           {cards.map((card) => (
-            <div key={card.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="h-9 w-9 shrink-0 rounded-lg" style={{ backgroundColor: card.color }} />
+            <div key={card.id} className="flex items-start gap-3 px-4 py-3">
+              <span className="mt-0.5 h-9 w-9 shrink-0 rounded-lg" style={{ backgroundColor: card.color }} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[var(--color-ink)]">{card.name}</p>
-                <p className="text-xs text-[var(--color-ink-faint)]">
+                <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{card.name}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-ink-faint)]">
                   Limite {formatCurrency(card.limit)} · Fecha {card.closingDay} · Vence {card.dueDay}
                 </p>
               </div>
-              <button onClick={() => openEdit(card)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100">
-                <Pencil className="h-4 w-4" />
-              </button>
-              <button onClick={() => setPendingDeleteId(card.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => openEdit(card)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100">
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button onClick={() => setPendingDeleteId(card.id)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
         </Panel>
@@ -99,8 +102,9 @@ export function CardsSection() {
               type="number"
               min={1}
               max={31}
+              placeholder="Ex: 20"
               value={form.closingDay}
-              onChange={(e) => setForm({ ...form, closingDay: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setForm({ ...form, closingDay: e.target.value === '' ? '' : parseInt(e.target.value) })}
               required
             />
             <TextField
@@ -108,8 +112,9 @@ export function CardsSection() {
               type="number"
               min={1}
               max={31}
+              placeholder="Ex: 27"
               value={form.dueDay}
-              onChange={(e) => setForm({ ...form, dueDay: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setForm({ ...form, dueDay: e.target.value === '' ? '' : parseInt(e.target.value) })}
               required
             />
           </div>

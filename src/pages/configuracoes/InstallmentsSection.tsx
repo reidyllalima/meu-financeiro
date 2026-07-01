@@ -24,8 +24,8 @@ function emptyForm(cardId: string, categoryId: string) {
     cardId,
     categoryId,
     installmentValue: 0 as number,
-    totalInstallments: 2,
-    anchorInstallmentNumber: 1,
+    totalInstallments: '' as number | '',
+    anchorInstallmentNumber: '' as number | '',
     anchorMonth: today.month,
     anchorYear: today.year,
   };
@@ -54,16 +54,19 @@ export function InstallmentsSection() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.description.trim() || form.installmentValue <= 0 || form.totalInstallments < 1) return;
+    if (!form.description.trim() || form.installmentValue <= 0 || !form.totalInstallments || !form.anchorInstallmentNumber) return;
+
+    const totalInstallments = Number(form.totalInstallments);
+    const anchorInstallmentNumber = Number(form.anchorInstallmentNumber);
 
     addCardPurchase({
       description: form.description.trim(),
       cardId: form.cardId || undefined,
       categoryId: form.categoryId,
       installmentValue: form.installmentValue,
-      totalAmount: roundCurrency(form.installmentValue * form.totalInstallments),
-      totalInstallments: form.totalInstallments,
-      anchorInstallmentNumber: form.anchorInstallmentNumber,
+      totalAmount: roundCurrency(form.installmentValue * totalInstallments),
+      totalInstallments,
+      anchorInstallmentNumber,
       anchorMonth: form.anchorMonth,
       anchorYear: form.anchorYear,
       purchaseDate: todayISODate(),
@@ -95,20 +98,22 @@ export function InstallmentsSection() {
           {plans.map((p) => {
             const card = cards.find((c) => c.id === p.cardId);
             return (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+              <div key={p.id} className="flex items-start gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--color-ink)]">{p.description}</p>
-                  <p className="text-xs text-[var(--color-ink-faint)]">
+                  <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{p.description}</p>
+                  <p className="mt-0.5 text-xs text-[var(--color-ink-faint)]">
                     {card?.name ?? 'Sem cartão (financiamento direto)'} · {p.anchorInstallmentNumber}/{p.totalInstallments} parcelas
                   </p>
                 </div>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
-                <button
-                  onClick={() => setPendingDeleteId(p.id)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
+                  <button
+                    onClick={() => setPendingDeleteId(p.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -141,17 +146,19 @@ export function InstallmentsSection() {
               label="Parcela atual"
               type="number"
               min={1}
+              placeholder="Ex: 3"
               value={form.anchorInstallmentNumber}
-              onChange={(e) => setForm({ ...form, anchorInstallmentNumber: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setForm({ ...form, anchorInstallmentNumber: e.target.value === '' ? '' : parseInt(e.target.value) })}
               hint="Ex: 3 (de 10)"
               required
             />
             <TextField
               label="Total de parcelas"
               type="number"
-              min={form.anchorInstallmentNumber}
+              min={1}
+              placeholder="Ex: 10"
               value={form.totalInstallments}
-              onChange={(e) => setForm({ ...form, totalInstallments: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setForm({ ...form, totalInstallments: e.target.value === '' ? '' : parseInt(e.target.value) })}
               required
             />
           </div>
@@ -172,7 +179,7 @@ export function InstallmentsSection() {
             </SelectField>
           </div>
           <p className="text-xs text-[var(--color-ink-faint)]">
-            Total estimado: {formatCurrency(roundCurrency(form.installmentValue * form.totalInstallments))}
+            Total estimado: {formatCurrency(roundCurrency(form.installmentValue * (Number(form.totalInstallments) || 0)))}
           </p>
           <Button type="submit" size="lg" full>
             Cadastrar parcelamento

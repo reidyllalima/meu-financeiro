@@ -83,7 +83,7 @@ export function Parcelamentos() {
                     <Icon className="h-[18px] w-[18px]" style={{ color: cat?.color ?? '#94a3b8' }} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-[var(--color-ink)]">{p.description}</p>
+                    <p className="break-words font-medium leading-snug text-[var(--color-ink)]">{p.description}</p>
                     <p className="text-xs text-[var(--color-ink-faint)]">{card?.name ?? 'Sem cartão (financiamento direto)'}</p>
                   </div>
                   <div className="text-right">

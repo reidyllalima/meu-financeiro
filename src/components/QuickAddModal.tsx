@@ -26,12 +26,12 @@ export function QuickAddModal() {
   const [payment, setPayment] = useState<PaymentSelection>('dinheiro');
   const [date, setDate] = useState(todayISODate());
   const [isInstallment, setIsInstallment] = useState(false);
-  const [installments, setInstallments] = useState(2);
+  const [installments, setInstallments] = useState<number | ''>('');
 
   const selectedCard = typeof payment === 'object' ? cards.find((c) => c.id === payment.cardId) : undefined;
 
   const installmentPreview = useMemo(() => {
-    if (!amount || !isInstallment || installments < 2) return null;
+    if (!amount || !isInstallment || !installments || installments < 2) return null;
     return computeInstallmentValue(amount, installments);
   }, [amount, isInstallment, installments]);
 
@@ -42,7 +42,7 @@ export function QuickAddModal() {
     setPayment('dinheiro');
     setDate(todayISODate());
     setIsInstallment(false);
-    setInstallments(2);
+    setInstallments('');
   }
 
   function handleClose() {
@@ -53,11 +53,12 @@ export function QuickAddModal() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amount || amount <= 0 || !description.trim()) return;
+    if (typeof payment === 'object' && isInstallment && !installments) return;
 
     if (payment === 'dinheiro' || payment === 'pix') {
       addExpense({ description: description.trim(), amount, categoryId, paymentMethod: payment, date });
     } else if (selectedCard) {
-      const total = isInstallment ? Math.max(2, installments) : 1;
+      const total = isInstallment ? Math.max(2, Number(installments) || 2) : 1;
       const installmentValue = total > 1 ? computeInstallmentValue(amount, total) : amount;
       const anchorMonthKey = invoiceMonthForPurchase(date, selectedCard.closingDay, selectedCard.dueDay);
       addCardPurchase({
@@ -147,8 +148,9 @@ export function QuickAddModal() {
                   type="number"
                   min={2}
                   max={48}
+                  placeholder="Ex: 3"
                   value={installments}
-                  onChange={(e) => setInstallments(parseInt(e.target.value) || 2)}
+                  onChange={(e) => setInstallments(e.target.value === '' ? '' : parseInt(e.target.value))}
                   className="w-24"
                 />
                 <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
@@ -162,7 +164,12 @@ export function QuickAddModal() {
           </div>
         )}
 
-        <Button type="submit" size="lg" full disabled={!amount || !description.trim()}>
+        <Button
+          type="submit"
+          size="lg"
+          full
+          disabled={!amount || !description.trim() || (isInstallment && !installments)}
+        >
           Salvar gasto
         </Button>
       </form>

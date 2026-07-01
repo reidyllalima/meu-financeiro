@@ -120,20 +120,20 @@ export function Cartoes() {
                       const cat = categories.find((c) => c.id === p.categoryId);
                       const Icon = getCategoryIcon(cat?.icon ?? '');
                       return (
-                        <div key={p.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                        <div key={p.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
                           <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                             style={{ backgroundColor: `${cat?.color ?? '#94a3b8'}1A` }}
                           >
                             <Icon className="h-4 w-4" style={{ color: cat?.color ?? '#94a3b8' }} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-[var(--color-ink)]">{p.description}</p>
+                            <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{p.description}</p>
                             <p className="text-xs text-[var(--color-ink-faint)]">
                               {p.totalInstallments > 1 ? `Parcelado em ${p.totalInstallments}x` : 'À vista'}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
+                          <p className="shrink-0 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
                         </div>
                       );
                     })
