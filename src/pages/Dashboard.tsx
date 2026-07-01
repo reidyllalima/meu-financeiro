@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, CheckCircle2, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { MonthSwitcher } from '../components/ui/MonthSwitcher';
@@ -9,17 +10,22 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useStore } from '../store/useStore';
 import { useUiStore } from '../store/useUiStore';
 import {
+  addMonthsToKey,
+  buildForecast,
   cardOccurrencesForMonth,
   categoryTotalsForMonth,
   expensesForMonth,
   formatCurrency,
   formatDateBR,
+  formatMonthLabel,
   formatPercent,
   sameMonthKey,
   todayMonthKey,
 } from '../lib/calc';
 import type { MonthKey } from '../types';
 import { getCategoryIcon } from '../lib/icons';
+
+const FORECAST_MONTHS_AHEAD = 3;
 
 interface TimelineItem {
   key: string;
@@ -35,17 +41,24 @@ interface TimelineItem {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [month, setMonth] = useState<MonthKey>(todayMonthKey());
 
   const incomes = useStore((s) => s.incomes);
   const expenses = useStore((s) => s.expenses);
   const cardPurchases = useStore((s) => s.cardPurchases);
   const cards = useStore((s) => s.cards);
+  const bills = useStore((s) => s.bills);
   const categories = useStore((s) => s.categories);
   const overdraftBalance = useStore((s) => s.settings.overdraftBalance);
   const removeExpense = useStore((s) => s.removeExpense);
   const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
+
+  const upcomingForecast = useMemo(
+    () => buildForecast(incomes, cardPurchases, bills, FORECAST_MONTHS_AHEAD, addMonthsToKey(todayMonthKey(), 1)),
+    [incomes, cardPurchases, bills],
+  );
 
   const hasSetup = incomes.length > 0;
 
@@ -210,6 +223,38 @@ export function Dashboard() {
           </div>
         )}
       </Panel>
+
+      {upcomingForecast.some((f) => f.cardCommitted + f.recurringBills > 0) && (
+        <Panel>
+          <p className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Previsão dos próximos meses</p>
+          <div className="flex flex-col divide-y divide-slate-100">
+            {upcomingForecast.map((f, i) => (
+              <button
+                key={i}
+                onClick={() => navigate(`/contas?month=${f.monthKey.month}&year=${f.monthKey.year}`)}
+                className="flex items-center justify-between py-2.5 text-left first:pt-0 last:pb-0"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-ink)]">{formatMonthLabel(f.monthKey)}</p>
+                  <p className="text-xs text-[var(--color-ink-faint)]">Parcelas + contas fixas</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--color-ink)]">
+                    {formatCurrency(f.cardCommitted + f.recurringBills)}
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[var(--color-ink-faint)]" />
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => navigate('/previsao')}
+            className="mt-1 w-full rounded-xl bg-slate-50 py-2 text-center text-xs font-medium text-[var(--color-brand-600)] hover:bg-slate-100"
+          >
+            Ver previsão completa
+          </button>
+        </Panel>
+      )}
 
       {categoryData.length > 0 && (
         <Panel>
