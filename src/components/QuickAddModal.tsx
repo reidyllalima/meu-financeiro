@@ -1,14 +1,21 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { Banknote, HandCoins, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Sheet } from './ui/Sheet';
 import { Button } from './ui/Button';
 import { MoneyInput, SelectField, TextField } from './ui/fields';
 import { Toggle } from './ui/Toggle';
 import { useStore } from '../store/useStore';
 import { useUiStore } from '../store/useUiStore';
-import { computeInstallmentValue, formatCurrency, invoiceMonthForPurchase, todayISODate } from '../lib/calc';
+import {
+  computeInstallmentValue,
+  dateToMonthKey,
+  formatCurrency,
+  invoiceMonthForPurchase,
+  parseISODate,
+  todayISODate,
+} from '../lib/calc';
 
-type PaymentSelection = 'dinheiro' | 'pix' | { cardId: string };
+type PaymentSelection = 'dinheiro' | 'pix' | 'fiado' | { cardId: string };
 
 export function QuickAddModal() {
   const open = useUiStore((s) => s.quickAddOpen);
@@ -29,6 +36,7 @@ export function QuickAddModal() {
   const [installments, setInstallments] = useState<number | ''>('');
 
   const selectedCard = typeof payment === 'object' ? cards.find((c) => c.id === payment.cardId) : undefined;
+  const showInstallmentOption = selectedCard !== undefined || payment === 'fiado';
 
   const installmentPreview = useMemo(() => {
     if (!amount || !isInstallment || !installments || installments < 2) return null;
@@ -53,18 +61,20 @@ export function QuickAddModal() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amount || amount <= 0 || !description.trim()) return;
-    if (typeof payment === 'object' && isInstallment && !installments) return;
+    if (showInstallmentOption && isInstallment && !installments) return;
 
     if (payment === 'dinheiro' || payment === 'pix') {
       addExpense({ description: description.trim(), amount, categoryId, paymentMethod: payment, date });
-    } else if (selectedCard) {
+    } else if (selectedCard || payment === 'fiado') {
       const total = isInstallment ? Math.max(2, Number(installments) || 2) : 1;
       const installmentValue = total > 1 ? computeInstallmentValue(amount, total) : amount;
-      const anchorMonthKey = invoiceMonthForPurchase(date, selectedCard.closingDay, selectedCard.dueDay);
+      const anchorMonthKey = selectedCard
+        ? invoiceMonthForPurchase(date, selectedCard.closingDay, selectedCard.dueDay)
+        : dateToMonthKey(parseISODate(date));
       addCardPurchase({
         description: description.trim(),
         categoryId,
-        cardId: selectedCard.id,
+        cardId: selectedCard?.id,
         totalAmount: amount,
         installmentValue,
         totalInstallments: total,
@@ -121,6 +131,12 @@ export function QuickAddModal() {
               icon={<QrCode className="h-4 w-4" />}
               label="Pix"
             />
+            <PaymentPill
+              active={payment === 'fiado'}
+              onClick={() => setPayment('fiado')}
+              icon={<HandCoins className="h-4 w-4" />}
+              label="Fiado"
+            />
             {cards.map((card) => (
               <PaymentPill
                 key={card.id}
@@ -139,7 +155,13 @@ export function QuickAddModal() {
           )}
         </div>
 
-        {selectedCard && (
+        {payment === 'fiado' && (
+          <p className="-mt-1 text-xs text-[var(--color-ink-faint)]">
+            Fiado: você levou agora e vai pagar depois. Fica registrado como uma pendência a pagar, à vista ou parcelada.
+          </p>
+        )}
+
+        {showInstallmentOption && (
           <div className="rounded-xl bg-slate-50 p-3.5">
             <Toggle checked={isInstallment} onChange={setIsInstallment} label="Compra parcelada?" />
             {isInstallment && (
@@ -168,7 +190,7 @@ export function QuickAddModal() {
           type="submit"
           size="lg"
           full
-          disabled={!amount || !description.trim() || (isInstallment && !installments)}
+          disabled={!amount || !description.trim() || (showInstallmentOption && isInstallment && !installments)}
         >
           Salvar gasto
         </Button>

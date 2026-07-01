@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, CheckCircle2, ChevronRight, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { MonthSwitcher } from '../components/ui/MonthSwitcher';
@@ -40,6 +40,7 @@ interface TimelineItem {
   date: string;
   badge: string;
   paymentMethod?: string;
+  isCardless: boolean;
   isMultiInstallment: boolean;
 }
 
@@ -132,10 +133,12 @@ export function Dashboard() {
       date: e.date,
       badge: e.paymentMethod === 'pix' ? 'Pix' : 'Dinheiro',
       paymentMethod: e.paymentMethod,
+      isCardless: false,
       isMultiInstallment: false,
     }));
     const fromCards: TimelineItem[] = monthCardOccurrences.map((o) => {
       const card = cards.find((c) => c.id === o.purchase.cardId);
+      const label = card?.name ?? 'Fiado';
       return {
         key: `c-${o.purchase.id}`,
         id: o.purchase.id,
@@ -144,10 +147,8 @@ export function Dashboard() {
         amount: o.value,
         categoryId: o.purchase.categoryId,
         date: o.purchase.purchaseDate,
-        badge:
-          o.purchase.totalInstallments > 1
-            ? `${card?.name ?? 'Cartão'} · ${o.installmentNumber}/${o.purchase.totalInstallments}`
-            : (card?.name ?? 'Cartão'),
+        badge: o.purchase.totalInstallments > 1 ? `${label} · ${o.installmentNumber}/${o.purchase.totalInstallments}` : label,
+        isCardless: !card,
         isMultiInstallment: o.purchase.totalInstallments > 1,
       };
     });
@@ -378,7 +379,8 @@ export function Dashboard() {
 function TimelineRow({ item, onDelete }: { item: TimelineItem; onDelete: () => void }) {
   const category = useStore((s) => s.categories.find((c) => c.id === item.categoryId));
   const Icon = getCategoryIcon(category?.icon ?? '');
-  const PaymentIcon = item.paymentMethod === 'pix' ? QrCode : item.paymentMethod === 'dinheiro' ? Banknote : CreditCardIcon;
+  const PaymentIcon =
+    item.paymentMethod === 'pix' ? QrCode : item.paymentMethod === 'dinheiro' ? Banknote : item.isCardless ? HandCoins : CreditCardIcon;
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">
