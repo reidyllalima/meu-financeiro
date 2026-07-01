@@ -28,31 +28,6 @@ npm run dev
 
 Acesse `http://localhost:5173`.
 
-Para gerar o build de produção e testá-lo localmente:
-
-```bash
-npm run build
-npm run preview
-```
-
-## Publicando gratuitamente no GitHub Pages
-
-Este projeto já vem com um workflow do GitHub Actions (`.github/workflows/deploy.yml`) que builda e publica automaticamente a cada push na branch `main`.
-
-1. Crie um repositório no GitHub e suba este projeto:
-   ```bash
-   git init
-   git add -A
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
-   git push -u origin main
-   ```
-2. No GitHub, vá em **Settings → Pages → Build and deployment → Source** e selecione **GitHub Actions**.
-3. Pronto — a cada push em `main`, o app é publicado em `https://SEU-USUARIO.github.io/SEU-REPOSITORIO/`.
-
-Não é necessário configurar nada no `vite.config.ts`: o `base: './'` usa caminhos relativos e o roteamento usa `HashRouter`, então o app funciona em qualquer subcaminho automaticamente.
-
 ## Instalando como app
 
 - **Celular (Android/Chrome ou iOS/Safari):** abra o link publicado e use "Adicionar à tela inicial" / "Instalar app".
@@ -98,18 +73,6 @@ Os próximos 6 meses com receita prevista, parcelas já comprometidas e contas f
 ### 7. Relatórios
 
 Evolução mensal, comparação entre meses, gastos por categoria e por cartão.
-
-## Estrutura do projeto
-
-```
-src/
-├── types/          # Modelo de dados (TypeScript)
-├── lib/            # Motor de cálculo de faturas/parcelas, formatação, categorias padrão, backup
-├── store/          # Zustand (dados) + store de UI (modais/toasts)
-├── components/     # Componentes de UI reutilizáveis e layout (sidebar, bottom nav, FAB)
-├── pages/          # Uma página por rota (Dashboard, Cartões, Parcelamentos, Previsão, Relatórios, Configurações)
-└── hooks/          # Hooks compartilhados
-```
 
 ## Privacidade
 
