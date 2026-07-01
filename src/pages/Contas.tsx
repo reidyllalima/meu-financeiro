@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, CircleDashed, ClipboardList, CreditCard as CreditCardIcon, Plus, Trash2 } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { Button } from '../components/ui/Button';
@@ -26,7 +27,13 @@ function emptyForm(categoryId: string) {
 }
 
 export function Contas() {
-  const [month, setMonth] = useState<MonthKey>(todayMonthKey());
+  const [searchParams] = useSearchParams();
+  const [month, setMonth] = useState<MonthKey>(() => {
+    const monthParam = parseInt(searchParams.get('month') ?? '', 10);
+    const yearParam = parseInt(searchParams.get('year') ?? '', 10);
+    if (!Number.isNaN(monthParam) && !Number.isNaN(yearParam)) return { month: monthParam, year: yearParam };
+    return todayMonthKey();
+  });
 
   const incomes = useStore((s) => s.incomes);
   const bills = useStore((s) => s.bills);

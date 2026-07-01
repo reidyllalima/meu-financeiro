@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { LineChart as LineChartIcon } from 'lucide-react';
+import { ChevronRight, LineChart as LineChartIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useStore } from '../store/useStore';
@@ -9,6 +10,7 @@ import { buildForecast, cardTotalsForMonth, formatCurrency, formatMonthLabel, fo
 const MONTHS_AHEAD = 6;
 
 export function Previsao() {
+  const navigate = useNavigate();
   const incomes = useStore((s) => s.incomes);
   const cardPurchases = useStore((s) => s.cardPurchases);
   const bills = useStore((s) => s.bills);
@@ -73,6 +75,19 @@ export function Previsao() {
                     {formatCurrency(f.balance)}
                   </p>
                 </div>
+                <button
+                  onClick={() => navigate(`/contas?month=${f.monthKey.month}&year=${f.monthKey.year}`)}
+                  className="mt-3 flex w-full items-center justify-between rounded-xl bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                >
+                  <div>
+                    <p className="text-xs text-[var(--color-ink-faint)]">Total de gastos previstos</p>
+                    <p className="mt-0.5 text-lg font-bold text-[var(--color-ink)]">
+                      {formatCurrency(f.cardCommitted + f.recurringBills)}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-[var(--color-ink-faint)]" />
+                </button>
+
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-xs text-[var(--color-ink-faint)]">Receita</p>
