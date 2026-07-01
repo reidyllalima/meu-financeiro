@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Pencil, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Landmark, Pencil, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { MonthSwitcher } from '../components/ui/MonthSwitcher';
@@ -14,9 +14,11 @@ import { useStore } from '../store/useStore';
 import { useUiStore } from '../store/useUiStore';
 import {
   addMonthsToKey,
+  bankExpensesForMonth,
   buildForecast,
   cardOccurrencesForMonth,
   categoryTotalsForMonth,
+  computeMonthOverdraft,
   expensesForMonth,
   formatCurrency,
   formatDateBR,
@@ -125,6 +127,12 @@ export function Dashboard() {
 
   const income = rawIncome - overdraftDeduction;
 
+  const bankExpensesThisMonth = useMemo(() => bankExpensesForMonth(expenses, month), [expenses, month]);
+  const overdraftUsedThisMonth = useMemo(
+    () => (isCurrentMonth ? computeMonthOverdraft(rawIncome, overdraftBalance, bankExpensesThisMonth).usedThisMonth : 0),
+    [isCurrentMonth, rawIncome, overdraftBalance, bankExpensesThisMonth],
+  );
+
   const monthExpenses = useMemo(() => expensesForMonth(expenses, month), [expenses, month]);
   const monthCardOccurrences = useMemo(() => cardOccurrencesForMonth(cardPurchases, month), [cardPurchases, month]);
 
@@ -158,7 +166,7 @@ export function Dashboard() {
       amount: e.amount,
       categoryId: e.categoryId,
       date: e.date,
-      badge: e.paymentMethod === 'pix' ? 'Pix' : 'Dinheiro',
+      badge: e.paymentMethod === 'pix' ? 'Pix' : e.paymentMethod === 'debito' ? 'Débito' : 'Dinheiro',
       paymentMethod: e.paymentMethod,
       isCardless: false,
       isMultiInstallment: false,
@@ -217,6 +225,12 @@ export function Dashboard() {
         {overdraftDeduction > 0 && (
           <p className="mt-1 text-xs text-white/60">
             Receita de {formatCurrency(rawIncome)} já com desconto de {formatCurrency(overdraftDeduction)} do cheque especial
+          </p>
+        )}
+        {overdraftUsedThisMonth > 0 && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-300">
+            <Landmark className="h-3.5 w-3.5 shrink-0" />
+            {formatCurrency(overdraftUsedThisMonth)} em Pix/Débito entraram no cheque especial este mês — será descontado da renda do mês que vem
           </p>
         )}
         <div className="mt-4 grid grid-cols-2 gap-4">
@@ -454,7 +468,15 @@ function TimelineRow({ item, onDelete }: { item: TimelineItem; onDelete: () => v
   const category = useStore((s) => s.categories.find((c) => c.id === item.categoryId));
   const Icon = getCategoryIcon(category?.icon ?? '');
   const PaymentIcon =
-    item.paymentMethod === 'pix' ? QrCode : item.paymentMethod === 'dinheiro' ? Banknote : item.isCardless ? HandCoins : CreditCardIcon;
+    item.paymentMethod === 'pix'
+      ? QrCode
+      : item.paymentMethod === 'debito'
+        ? Landmark
+        : item.paymentMethod === 'dinheiro'
+          ? Banknote
+          : item.isCardless
+            ? HandCoins
+            : CreditCardIcon;
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">

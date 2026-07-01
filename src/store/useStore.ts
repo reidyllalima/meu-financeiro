@@ -2,7 +2,17 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AppSettings, AppState, Bill, CardPurchase, Category, CreditCard, Expense, Income, MonthKey } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/categories';
-import { DEFAULT_INVOICE_ALERT_THRESHOLD, periodKey } from '../lib/calc';
+import {
+  addMonthsToKey,
+  bankExpensesForMonth,
+  computeMonthOverdraft,
+  DEFAULT_INVOICE_ALERT_THRESHOLD,
+  monthKeyDiff,
+  parsePeriodKey,
+  periodKey,
+  todayMonthKey,
+  totalIncomeForMonth,
+} from '../lib/calc';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -23,6 +33,7 @@ const initialState: AppState = {
     currency: 'BRL',
     onboardingDismissed: false,
     overdraftBalance: 0,
+    overdraftMonthKey: periodKey(todayMonthKey()),
   },
 };
 
@@ -61,6 +72,9 @@ interface StoreActions {
 
   // Configurações
   updateSettings: (data: Partial<AppSettings>) => void;
+
+  /** Acerta a dívida do cheque especial dos meses que passaram desde o último acerto, transportando-a para o mês atual. */
+  settleOverdraft: () => void;
 
   // Backup
   exportState: () => AppState;
@@ -138,6 +152,32 @@ export const useStore = create<Store>()(
 
       updateSettings: (data) => set((s) => ({ settings: { ...s.settings, ...data } })),
 
+      settleOverdraft: () => {
+        const s = get();
+        const current = todayMonthKey();
+        const currentKey = periodKey(current);
+        const storedKey = s.settings.overdraftMonthKey ?? currentKey;
+        if (storedKey === currentKey) return;
+
+        const startCursor = parsePeriodKey(storedKey);
+        const monthsToSettle = monthKeyDiff(current, startCursor);
+        if (monthsToSettle <= 0) {
+          set((s) => ({ settings: { ...s.settings, overdraftMonthKey: currentKey } }));
+          return;
+        }
+
+        let cursor = startCursor;
+        let debt = s.settings.overdraftBalance;
+        for (let i = 0; i < monthsToSettle; i++) {
+          const rawIncome = totalIncomeForMonth(s.incomes, cursor);
+          const bankExpenses = bankExpensesForMonth(s.expenses, cursor);
+          debt = computeMonthOverdraft(rawIncome, debt, bankExpenses).endingDebt;
+          cursor = addMonthsToKey(cursor, 1);
+        }
+
+        set((s) => ({ settings: { ...s.settings, overdraftBalance: debt, overdraftMonthKey: currentKey } }));
+      },
+
       exportState: () => {
         const { categories, incomes, cards, cardPurchases, expenses, bills, settings } = get();
         return { categories, incomes, cards, cardPurchases, expenses, bills, settings };
@@ -147,7 +187,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'gtp-faturas-storage',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => localStorage),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (persisted: any, version) => {
@@ -180,6 +220,9 @@ export const useStore = create<Store>()(
             alertThreshold: DEFAULT_INVOICE_ALERT_THRESHOLD,
             ...c,
           }));
+        }
+        if (version < 5) {
+          persisted.settings = { overdraftMonthKey: periodKey(todayMonthKey()), ...persisted.settings };
         }
         return persisted;
       },

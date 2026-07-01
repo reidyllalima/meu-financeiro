@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useStore } from '../store/useStore';
-import { DEFAULT_INVOICE_ALERT_THRESHOLD } from '../lib/calc';
+import { DEFAULT_INVOICE_ALERT_THRESHOLD, periodKey, todayMonthKey } from '../lib/calc';
 import type { AppState } from '../types';
 
 interface CloudDoc extends AppState {
@@ -21,6 +21,8 @@ export function useCloudSync(uid: string) {
     lastPushedAt.current = null;
     hasLoadedRemote.current = false;
     applyingRemote.current = false;
+
+    useStore.getState().settleOverdraft();
 
     const ref = doc(db, 'users', uid);
 
@@ -58,10 +60,15 @@ export function useCloudSync(uid: string) {
         cardPurchases: remote.cardPurchases,
         expenses: remote.expenses,
         bills: remote.bills,
-        settings: { ...remote.settings, overdraftBalance: remote.settings.overdraftBalance ?? 0 },
+        settings: {
+          ...remote.settings,
+          overdraftBalance: remote.settings.overdraftBalance ?? 0,
+          overdraftMonthKey: remote.settings.overdraftMonthKey ?? periodKey(todayMonthKey()),
+        },
       };
       applyingRemote.current = true;
       useStore.getState().importState(data);
+      useStore.getState().settleOverdraft();
     });
 
     let timeout: ReturnType<typeof setTimeout> | undefined;

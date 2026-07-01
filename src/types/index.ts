@@ -2,7 +2,7 @@
  * Modelo de dados do app. Tudo é serializável em JSON (persistido em localStorage).
  */
 
-export type PaymentMethod = 'dinheiro' | 'pix';
+export type PaymentMethod = 'dinheiro' | 'pix' | 'debito';
 
 export interface Category {
   id: string;
@@ -100,8 +100,14 @@ export interface Bill {
 export interface AppSettings {
   currency: 'BRL';
   onboardingDismissed: boolean;
-  /** Quanto você está devendo no cheque especial agora — é descontado da receita do mês atual no Dashboard. */
+  /**
+   * Quanto você está devendo no cheque especial agora — é descontado da receita do mês atual no Dashboard.
+   * Atualizado automaticamente: cresce quando um gasto em Pix/Débito estoura o saldo disponível do mês, e
+   * é liquidado (abatido da receita) quando o mês vira. Pode ser corrigido manualmente se necessário.
+   */
   overdraftBalance: number;
+  /** Mês/ano (formato "YYYY-MM") para o qual `overdraftBalance` já foi acertado como dívida de entrada. */
+  overdraftMonthKey: string;
 }
 
 export interface AppState {

@@ -79,8 +79,9 @@ export function IncomesSection() {
         <div>
           <p className="text-sm font-medium text-[var(--color-ink)]">Cheque especial</p>
           <p className="text-xs text-[var(--color-ink-faint)]">
-            Quanto você está devendo agora. Esse valor é descontado da sua receita no Dashboard deste mês — atualize aqui
-            conforme o extrato do seu banco.
+            Quanto você está devendo agora. Esse valor é atualizado sozinho quando um gasto em Pix ou Débito estoura o
+            saldo do mês, e é descontado automaticamente da sua receita quando o mês vira. Edite aqui só para corrigir
+            manualmente (ex: um saque no cheque especial fora do app).
           </p>
         </div>
         <MoneyInput

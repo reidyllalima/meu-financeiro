@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Banknote, HandCoins, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { Banknote, HandCoins, Landmark, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Sheet } from './ui/Sheet';
 import { Button } from './ui/Button';
 import { MoneyInput, SelectField, TextField } from './ui/fields';
@@ -16,7 +16,7 @@ import {
   todayISODate,
 } from '../lib/calc';
 
-type PaymentSelection = 'dinheiro' | 'pix' | 'fiado' | { cardId: string };
+type PaymentSelection = 'dinheiro' | 'pix' | 'debito' | 'fiado' | { cardId: string };
 
 export function QuickAddModal() {
   const open = useUiStore((s) => s.quickAddOpen);
@@ -69,7 +69,7 @@ export function QuickAddModal() {
     if (!amount || amount <= 0 || !description.trim()) return;
     if (showInstallmentOption && isInstallment && (!installments || !installmentValue || installmentValue <= 0)) return;
 
-    if (payment === 'dinheiro' || payment === 'pix') {
+    if (payment === 'dinheiro' || payment === 'pix' || payment === 'debito') {
       addExpense({ description: description.trim(), amount, categoryId, paymentMethod: payment, date });
     } else if (selectedCard || payment === 'fiado') {
       const total = isInstallment ? Math.max(2, Number(installments) || 2) : 1;
@@ -137,6 +137,12 @@ export function QuickAddModal() {
               onClick={() => setPayment('pix')}
               icon={<QrCode className="h-4 w-4" />}
               label="Pix"
+            />
+            <PaymentPill
+              active={payment === 'debito'}
+              onClick={() => setPayment('debito')}
+              icon={<Landmark className="h-4 w-4" />}
+              label="Débito"
             />
             <PaymentPill
               active={payment === 'fiado'}

@@ -1,4 +1,4 @@
-import { DEFAULT_INVOICE_ALERT_THRESHOLD } from './calc';
+import { DEFAULT_INVOICE_ALERT_THRESHOLD, periodKey, todayMonthKey } from './calc';
 import type { AppState } from '../types';
 
 const BACKUP_VERSION = 1;
@@ -45,7 +45,11 @@ export function parseBackupFile(text: string): AppState {
     }
   }
 
-  data.settings = { ...data.settings, overdraftBalance: data.settings.overdraftBalance ?? 0 };
+  data.settings = {
+    ...data.settings,
+    overdraftBalance: data.settings.overdraftBalance ?? 0,
+    overdraftMonthKey: data.settings.overdraftMonthKey ?? periodKey(todayMonthKey()),
+  };
   data.cards = data.cards.map((c) => ({ ...c, alertThreshold: c.alertThreshold ?? DEFAULT_INVOICE_ALERT_THRESHOLD }));
 
   return data;

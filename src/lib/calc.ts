@@ -34,6 +34,11 @@ export function periodKey(monthKey: MonthKey): string {
   return `${monthKey.year}-${String(monthKey.month + 1).padStart(2, '0')}`;
 }
 
+export function parsePeriodKey(key: string): MonthKey {
+  const [year, month] = key.split('-').map(Number);
+  return { month: month - 1, year };
+}
+
 export function parseISODate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -191,6 +196,33 @@ export function expensesForMonth(expenses: Expense[], monthKey: MonthKey): Expen
     const d = parseISODate(e.date);
     return d.getMonth() === monthKey.month && d.getFullYear() === monthKey.year;
   });
+}
+
+/** Soma dos gastos do mês que saem direto da conta (Pix/Débito) — usados para calcular o cheque especial. */
+export function bankExpensesForMonth(expenses: Expense[], monthKey: MonthKey): number {
+  return expensesForMonth(expenses, monthKey)
+    .filter((e) => e.paymentMethod === 'pix' || e.paymentMethod === 'debito')
+    .reduce((s, e) => s + e.amount, 0);
+}
+
+// ---------- Cheque especial (overdraft) ----------
+
+export interface OverdraftResult {
+  /** Dívida que não coube na receita do mês (a que entrou + a nova), transportada para o mês seguinte. */
+  endingDebt: number;
+  /** Quanto do cheque especial foi consumido só pelos gastos deste mês (Pix/Débito), sem contar dívida anterior. */
+  usedThisMonth: number;
+}
+
+/**
+ * Simula o mês bancário: a receita paga primeiro a dívida que já estava no cheque especial;
+ * o que sobrar cobre os gastos em Pix/Débito; o que faltar vira nova dívida.
+ */
+export function computeMonthOverdraft(rawIncome: number, startingDebt: number, bankExpenses: number): OverdraftResult {
+  const availableForSpending = Math.max(0, rawIncome - startingDebt);
+  const oldDebtRemaining = Math.max(0, startingDebt - rawIncome);
+  const usedThisMonth = Math.max(0, bankExpenses - availableForSpending);
+  return { endingDebt: oldDebtRemaining + usedThisMonth, usedThisMonth };
 }
 
 // ---------- Agregações do mês (usadas no Dashboard) ----------
