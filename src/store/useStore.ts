@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AppSettings, AppState, Bill, CardPurchase, Category, CreditCard, Expense, Income, MonthKey } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/categories';
-import { periodKey } from '../lib/calc';
+import { DEFAULT_INVOICE_ALERT_THRESHOLD, periodKey } from '../lib/calc';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -147,7 +147,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'gtp-faturas-storage',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (persisted: any, version) => {
@@ -174,6 +174,12 @@ export const useStore = create<Store>()(
         }
         if (version < 3) {
           persisted.settings = { overdraftBalance: 0, ...persisted.settings };
+        }
+        if (version < 4) {
+          persisted.cards = (persisted.cards ?? []).map((c: Omit<CreditCard, 'alertThreshold'>) => ({
+            alertThreshold: DEFAULT_INVOICE_ALERT_THRESHOLD,
+            ...c,
+          }));
         }
         return persisted;
       },

@@ -8,12 +8,19 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useStore } from '../../store/useStore';
 import { useUiStore } from '../../store/useUiStore';
-import { formatCurrency } from '../../lib/calc';
+import { DEFAULT_INVOICE_ALERT_THRESHOLD, formatCurrency } from '../../lib/calc';
 import { CARD_COLORS } from '../../lib/categories';
 import type { CreditCard as CreditCardType } from '../../types';
 
 function emptyForm() {
-  return { name: '', limit: 0, closingDay: '' as number | '', dueDay: '' as number | '', color: CARD_COLORS[0] };
+  return {
+    name: '',
+    limit: 0,
+    closingDay: '' as number | '',
+    dueDay: '' as number | '',
+    color: CARD_COLORS[0],
+    alertThreshold: DEFAULT_INVOICE_ALERT_THRESHOLD,
+  };
 }
 
 export function CardsSection() {
@@ -36,13 +43,20 @@ export function CardsSection() {
 
   function openEdit(card: CreditCardType) {
     setEditingId(card.id);
-    setForm({ name: card.name, limit: card.limit, closingDay: card.closingDay, dueDay: card.dueDay, color: card.color });
+    setForm({
+      name: card.name,
+      limit: card.limit,
+      closingDay: card.closingDay,
+      dueDay: card.dueDay,
+      color: card.color,
+      alertThreshold: card.alertThreshold ?? DEFAULT_INVOICE_ALERT_THRESHOLD,
+    });
     setSheetOpen(true);
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || form.limit <= 0 || !form.closingDay || !form.dueDay) return;
+    if (!form.name.trim() || form.limit <= 0 || !form.closingDay || !form.dueDay || form.alertThreshold <= 0) return;
     const data = { ...form, closingDay: Number(form.closingDay), dueDay: Number(form.dueDay) };
     if (editingId) {
       updateCard(editingId, data);
@@ -96,6 +110,13 @@ export function CardsSection() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <TextField label="Nome do cartão" placeholder="Ex: Nubank, Inter, C6..." value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <MoneyInput label="Limite total" value={form.limit || ''} onValueChange={(v) => setForm({ ...form, limit: v })} required />
+          <MoneyInput
+            label="Alertar quando a fatura passar de"
+            hint="A fatura fica laranja a partir desse valor, e vermelha bem acima dele."
+            value={form.alertThreshold || ''}
+            onValueChange={(v) => setForm({ ...form, alertThreshold: v })}
+            required
+          />
           <div className="grid grid-cols-2 gap-3">
             <TextField
               label="Dia do fechamento"

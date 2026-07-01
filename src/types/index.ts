@@ -32,6 +32,8 @@ export interface CreditCard {
   /** Dia do mês em que a fatura vence (1-31) */
   dueDay: number;
   color: string;
+  /** Valor da fatura a partir do qual o card do cartão passa a alertar (laranja) e, bem acima disso, alertar forte (vermelho). */
+  alertThreshold: number;
   /** Faturas marcadas como pagas, formato "YYYY-MM" */
   paidInvoicePeriods: string[];
   createdAt: string;

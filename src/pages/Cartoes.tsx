@@ -15,8 +15,10 @@ import {
   cardOccurrencesForCardInMonth,
   cardUsedLimit,
   computeInstallmentValue,
+  DEFAULT_INVOICE_ALERT_THRESHOLD,
   formatCurrency,
   formatMonthLabel,
+  invoiceAlertLevel,
   invoiceMonthForPurchase,
   isCardInvoicePaidForMonth,
   todayISODate,
@@ -124,6 +126,13 @@ export function Cartoes() {
             .sort((a, b) => b.value - a.value);
           const invoiceTotal = invoice.reduce((s, o) => s + o.value, 0);
           const invoicePaid = isCardInvoicePaidForMonth(card, month);
+          const alertLevel = invoiceAlertLevel(invoiceTotal, card.alertThreshold ?? DEFAULT_INVOICE_ALERT_THRESHOLD);
+          const invoiceColorClass =
+            alertLevel === 'danger'
+              ? 'rounded-lg bg-[var(--color-danger-50)] px-2 py-0.5 text-[var(--color-danger-500)]'
+              : alertLevel === 'warning'
+                ? 'rounded-lg bg-[var(--color-warn-50)] px-2 py-0.5 text-[var(--color-warn-500)]'
+                : 'text-white';
           const expanded = expandedId === card.id;
 
           return (
@@ -138,7 +147,28 @@ export function Cartoes() {
                     Fecha dia {card.closingDay} · Vence dia {card.dueDay}
                   </span>
                 </div>
-                <div className="mt-4 flex items-end justify-between text-white">
+
+                <div className="mt-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-white/70">Fatura de {formatMonthLabel(month)}</p>
+                    <p className={`mt-0.5 inline-block text-2xl font-bold ${invoiceColorClass}`}>{formatCurrency(invoiceTotal)}</p>
+                  </div>
+                  {invoiceTotal > 0 && (
+                    <button
+                      onClick={() => toggleCardInvoicePaid(card.id, month)}
+                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        invoicePaid
+                          ? 'bg-[var(--color-brand-100)] text-[var(--color-brand-700)]'
+                          : 'bg-[var(--color-danger-50)] text-[var(--color-danger-500)]'
+                      }`}
+                    >
+                      {invoicePaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+                      {invoicePaid ? 'Paga' : 'Pendente'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between text-white">
                   <div>
                     <p className="text-xs text-white/70">Limite disponível</p>
                     <p className="text-sm font-medium">{formatCurrency(available)}</p>
@@ -152,26 +182,6 @@ export function Cartoes() {
                   <ProgressBar value={usedPercent} colorClass="bg-white" trackClassName="bg-white/25" height={6} />
                   <p className="mt-1.5 text-xs text-white/70">{formatCurrency(used)} usado de {formatCurrency(card.limit)}</p>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-slate-100 p-4">
-                <div>
-                  <p className="text-xs text-[var(--color-ink-faint)]">Fatura de {formatMonthLabel(month)}</p>
-                  <p className="mt-0.5 text-2xl font-bold text-[var(--color-ink)]">{formatCurrency(invoiceTotal)}</p>
-                </div>
-                {invoiceTotal > 0 && (
-                  <button
-                    onClick={() => toggleCardInvoicePaid(card.id, month)}
-                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      invoicePaid
-                        ? 'bg-[var(--color-brand-100)] text-[var(--color-brand-700)]'
-                        : 'bg-[var(--color-danger-50)] text-[var(--color-danger-500)]'
-                    }`}
-                  >
-                    {invoicePaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
-                    {invoicePaid ? 'Paga' : 'Pendente'}
-                  </button>
-                )}
               </div>
 
               <button

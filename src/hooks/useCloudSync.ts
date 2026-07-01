@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useStore } from '../store/useStore';
+import { DEFAULT_INVOICE_ALERT_THRESHOLD } from '../lib/calc';
 import type { AppState } from '../types';
 
 interface CloudDoc extends AppState {
@@ -53,7 +54,7 @@ export function useCloudSync(uid: string) {
       const data: AppState = {
         categories: remote.categories,
         incomes: remote.incomes,
-        cards: remote.cards,
+        cards: remote.cards.map((c) => ({ ...c, alertThreshold: c.alertThreshold ?? DEFAULT_INVOICE_ALERT_THRESHOLD })),
         cardPurchases: remote.cardPurchases,
         expenses: remote.expenses,
         bills: remote.bills,

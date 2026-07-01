@@ -265,6 +265,27 @@ export function cardUsedLimit(purchases: CardPurchase[], cardId: string, today: 
     .reduce((sum, p) => sum + outstandingAmount(p, today), 0);
 }
 
+// ---------- Cartões: alerta de valor da fatura ----------
+
+export const DEFAULT_INVOICE_ALERT_THRESHOLD = 2000;
+
+/** Fator sobre o limite de alerta a partir do qual o alerta vira "vermelho" (bem acima do limite). */
+const DANGER_MULTIPLIER = 1.2;
+
+export type InvoiceAlertLevel = 'normal' | 'warning' | 'danger';
+
+/**
+ * Nível de alerta da fatura em relação ao limite configurado no cartão:
+ * abaixo do limite = normal; a partir do limite = laranja (warning);
+ * bem acima do limite (20%+) = vermelho (danger).
+ */
+export function invoiceAlertLevel(total: number, alertThreshold: number = DEFAULT_INVOICE_ALERT_THRESHOLD): InvoiceAlertLevel {
+  if (alertThreshold <= 0) return 'normal';
+  if (total >= alertThreshold * DANGER_MULTIPLIER) return 'danger';
+  if (total >= alertThreshold) return 'warning';
+  return 'normal';
+}
+
 // ---------- Previsão financeira ----------
 
 export interface MonthForecast {
