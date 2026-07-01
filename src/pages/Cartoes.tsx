@@ -1,31 +1,90 @@
-import { useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { CreditCard, Plus, ChevronDown, ChevronUp, CheckCircle2, CircleDashed } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
+import { MonthSwitcher } from '../components/ui/MonthSwitcher';
+import { Sheet } from '../components/ui/Sheet';
+import { MoneyInput, SelectField, TextField } from '../components/ui/fields';
+import { Toggle } from '../components/ui/Toggle';
 import { useStore } from '../store/useStore';
+import { useUiStore } from '../store/useUiStore';
 import {
-  addMonthsToKey,
   cardOccurrencesForCardInMonth,
   cardUsedLimit,
+  computeInstallmentValue,
   formatCurrency,
   formatMonthLabel,
-  isPurchaseFinished,
+  invoiceMonthForPurchase,
+  isCardInvoicePaidForMonth,
+  todayISODate,
   todayMonthKey,
 } from '../lib/calc';
+import type { CreditCard as CreditCardType, MonthKey } from '../types';
 import { getCategoryIcon } from '../lib/icons';
+
+function emptyPurchaseForm(categoryId: string) {
+  return {
+    description: '',
+    amount: '' as number | '',
+    categoryId,
+    date: todayISODate(),
+    isInstallment: false,
+    installments: '' as number | '',
+  };
+}
 
 export function Cartoes() {
   const cards = useStore((s) => s.cards);
   const cardPurchases = useStore((s) => s.cardPurchases);
   const categories = useStore((s) => s.categories);
+  const toggleCardInvoicePaid = useStore((s) => s.toggleCardInvoicePaid);
+  const addCardPurchase = useStore((s) => s.addCardPurchase);
+  const showToast = useUiStore((s) => s.showToast);
 
-  const currentMonth = todayMonthKey();
-  const nextMonth = addMonthsToKey(currentMonth, 1);
-
+  const [month, setMonth] = useState<MonthKey>(todayMonthKey());
   const [expandedId, setExpandedId] = useState<string | null>(cards[0]?.id ?? null);
+
+  const [purchaseCard, setPurchaseCard] = useState<CreditCardType | null>(null);
+  const [form, setForm] = useState(() => emptyPurchaseForm(categories[0]?.id ?? ''));
+
+  const installmentPreview = useMemo(() => {
+    if (!form.amount || !form.isInstallment || !form.installments || form.installments < 2) return null;
+    return computeInstallmentValue(form.amount, form.installments);
+  }, [form.amount, form.isInstallment, form.installments]);
+
+  function openAddPurchase(card: CreditCardType) {
+    setForm(emptyPurchaseForm(categories[0]?.id ?? ''));
+    setPurchaseCard(card);
+  }
+
+  function handleAddPurchase(e: FormEvent) {
+    e.preventDefault();
+    if (!purchaseCard || !form.amount || form.amount <= 0 || !form.description.trim()) return;
+    if (form.isInstallment && !form.installments) return;
+
+    const total = form.isInstallment ? Math.max(2, Number(form.installments) || 2) : 1;
+    const installmentValue = total > 1 ? computeInstallmentValue(form.amount, total) : form.amount;
+    const anchorMonthKey = invoiceMonthForPurchase(form.date, purchaseCard.closingDay, purchaseCard.dueDay);
+
+    addCardPurchase({
+      description: form.description.trim(),
+      categoryId: form.categoryId,
+      cardId: purchaseCard.id,
+      totalAmount: form.amount,
+      installmentValue,
+      totalInstallments: total,
+      anchorInstallmentNumber: 1,
+      anchorMonth: anchorMonthKey.month,
+      anchorYear: anchorMonthKey.year,
+      purchaseDate: form.date,
+    });
+
+    showToast('Compra registrada');
+    setPurchaseCard(null);
+  }
 
   return (
     <div className="flex flex-col gap-5 pb-4">
@@ -37,6 +96,13 @@ export function Cartoes() {
           </Button>
         </Link>
       </div>
+
+      {cards.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-[var(--color-ink-soft)]">Fatura de</p>
+          <MonthSwitcher value={month} onChange={setMonth} />
+        </div>
+      )}
 
       {cards.length === 0 ? (
         <EmptyState
@@ -54,14 +120,10 @@ export function Cartoes() {
           const used = cardUsedLimit(cardPurchases, card.id);
           const available = Math.max(card.limit - used, 0);
           const usedPercent = card.limit > 0 ? (used / card.limit) * 100 : 0;
-          const currentInvoice = cardOccurrencesForCardInMonth(cardPurchases, card.id, currentMonth);
-          const nextInvoice = cardOccurrencesForCardInMonth(cardPurchases, card.id, nextMonth);
-          const currentTotal = currentInvoice.reduce((s, o) => s + o.value, 0);
-          const nextTotal = nextInvoice.reduce((s, o) => s + o.value, 0);
-          const purchases = cardPurchases
-            .filter((p) => p.cardId === card.id)
-            .filter((p) => !isPurchaseFinished(p))
-            .sort((a, b) => (a.purchaseDate < b.purchaseDate ? 1 : -1));
+          const invoice = cardOccurrencesForCardInMonth(cardPurchases, card.id, month)
+            .sort((a, b) => b.value - a.value);
+          const invoiceTotal = invoice.reduce((s, o) => s + o.value, 0);
+          const invoicePaid = isCardInvoicePaidForMonth(card, month);
           const expanded = expandedId === card.id;
 
           return (
@@ -92,31 +154,48 @@ export function Cartoes() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-                <div className="p-4">
-                  <p className="text-xs text-[var(--color-ink-faint)]">Fatura de {formatMonthLabel(currentMonth)}</p>
-                  <p className="mt-0.5 text-[15px] font-semibold text-[var(--color-ink)]">{formatCurrency(currentTotal)}</p>
+              <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                <div>
+                  <p className="text-xs text-[var(--color-ink-faint)]">Fatura de {formatMonthLabel(month)}</p>
+                  <p className="mt-0.5 text-[15px] font-semibold text-[var(--color-ink)]">{formatCurrency(invoiceTotal)}</p>
                 </div>
-                <div className="p-4">
-                  <p className="text-xs text-[var(--color-ink-faint)]">Próxima fatura ({formatMonthLabel(nextMonth)})</p>
-                  <p className="mt-0.5 text-[15px] font-semibold text-[var(--color-ink)]">{formatCurrency(nextTotal)}</p>
-                </div>
+                {invoiceTotal > 0 && (
+                  <button
+                    onClick={() => toggleCardInvoicePaid(card.id, month)}
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      invoicePaid
+                        ? 'bg-[var(--color-brand-100)] text-[var(--color-brand-700)]'
+                        : 'bg-[var(--color-danger-50)] text-[var(--color-danger-500)]'
+                    }`}
+                  >
+                    {invoicePaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+                    {invoicePaid ? 'Paga' : 'Pendente'}
+                  </button>
+                )}
               </div>
+
+              <button
+                onClick={() => openAddPurchase(card)}
+                className="flex w-full items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm font-medium text-[var(--color-brand-600)] hover:bg-slate-50 sm:px-5"
+              >
+                <Plus className="h-4 w-4" /> Nova compra
+              </button>
 
               <button
                 onClick={() => setExpandedId(expanded ? null : card.id)}
                 className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--color-ink-soft)] hover:bg-slate-50 sm:px-5"
               >
-                Compras do cartão ({purchases.length})
+                Compras da fatura ({invoice.length})
                 {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
 
               {expanded && (
                 <div className="divide-y divide-slate-100 border-t border-slate-100">
-                  {purchases.length === 0 ? (
-                    <p className="px-5 py-4 text-sm text-[var(--color-ink-faint)]">Nenhuma compra em aberto neste cartão.</p>
+                  {invoice.length === 0 ? (
+                    <p className="px-5 py-4 text-sm text-[var(--color-ink-faint)]">Nenhuma compra nesta fatura.</p>
                   ) : (
-                    purchases.map((p) => {
+                    invoice.map((occ) => {
+                      const p = occ.purchase;
                       const cat = categories.find((c) => c.id === p.categoryId);
                       const Icon = getCategoryIcon(cat?.icon ?? '');
                       return (
@@ -130,10 +209,10 @@ export function Cartoes() {
                           <div className="min-w-0 flex-1">
                             <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{p.description}</p>
                             <p className="text-xs text-[var(--color-ink-faint)]">
-                              {p.totalInstallments > 1 ? `Parcelado em ${p.totalInstallments}x` : 'À vista'}
+                              {p.totalInstallments > 1 ? `Parcela ${occ.installmentNumber}/${p.totalInstallments}` : 'À vista'}
                             </p>
                           </div>
-                          <p className="shrink-0 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
+                          <p className="shrink-0 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(occ.value)}</p>
                         </div>
                       );
                     })
@@ -144,6 +223,68 @@ export function Cartoes() {
           );
         })
       )}
+
+      <Sheet
+        open={!!purchaseCard}
+        onClose={() => setPurchaseCard(null)}
+        title={purchaseCard ? `Nova compra · ${purchaseCard.name}` : 'Nova compra'}
+      >
+        <form onSubmit={handleAddPurchase} className="flex flex-col gap-4">
+          <TextField
+            label="Descrição"
+            placeholder="Ex: Mercado, Farmácia, Notebook..."
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            autoFocus
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <MoneyInput label="Valor" value={form.amount} onValueChange={(v) => setForm({ ...form, amount: v })} required />
+            <TextField label="Data" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+          </div>
+
+          <SelectField label="Categoria" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </SelectField>
+
+          <div className="rounded-xl bg-slate-50 p-3.5">
+            <Toggle checked={form.isInstallment} onChange={(v) => setForm({ ...form, isInstallment: v })} label="Compra parcelada?" />
+            {form.isInstallment ? (
+              <div className="mt-3 flex items-center gap-3">
+                <TextField
+                  type="number"
+                  min={2}
+                  max={48}
+                  placeholder="Ex: 3"
+                  value={form.installments}
+                  onChange={(e) => setForm({ ...form, installments: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                  className="w-24"
+                />
+                <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
+                {installmentPreview !== null && (
+                  <span className="ml-auto text-sm font-medium text-[var(--color-ink)]">
+                    {form.installments}x de {formatCurrency(installmentPreview)}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-[var(--color-ink-faint)]">Cobrada inteira na próxima fatura em aberto (à vista).</p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            size="lg"
+            full
+            disabled={!form.amount || !form.description.trim() || (form.isInstallment && !form.installments)}
+          >
+            Salvar compra
+          </Button>
+        </form>
+      </Sheet>
     </div>
   );
 }
