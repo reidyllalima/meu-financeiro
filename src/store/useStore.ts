@@ -22,6 +22,7 @@ const initialState: AppState = {
   settings: {
     currency: 'BRL',
     onboardingDismissed: false,
+    overdraftBalance: 0,
   },
 };
 
@@ -146,7 +147,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'gtp-faturas-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (persisted: any, version) => {
@@ -170,6 +171,9 @@ export const useStore = create<Store>()(
             createdAt: b.createdAt,
           }));
           delete persisted.recurringBills;
+        }
+        if (version < 3) {
+          persisted.settings = { overdraftBalance: 0, ...persisted.settings };
         }
         return persisted;
       },

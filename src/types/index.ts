@@ -98,6 +98,8 @@ export interface Bill {
 export interface AppSettings {
   currency: 'BRL';
   onboardingDismissed: boolean;
+  /** Quanto você está devendo no cheque especial agora — é descontado da receita do mês atual no Dashboard. */
+  overdraftBalance: number;
 }
 
 export interface AppState {

@@ -44,6 +44,8 @@ export function parseBackupFile(text: string): AppState {
     }
   }
 
+  data.settings = { ...data.settings, overdraftBalance: data.settings.overdraftBalance ?? 0 };
+
   return data;
 }
 

@@ -27,6 +27,8 @@ export function IncomesSection() {
   const addIncome = useStore((s) => s.addIncome);
   const updateIncome = useStore((s) => s.updateIncome);
   const removeIncome = useStore((s) => s.removeIncome);
+  const overdraftBalance = useStore((s) => s.settings.overdraftBalance);
+  const updateSettings = useStore((s) => s.updateSettings);
   const showToast = useUiStore((s) => s.showToast);
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -72,6 +74,20 @@ export function IncomesSection() {
           <Plus className="h-4 w-4" /> Nova
         </Button>
       </div>
+
+      <Panel className="flex flex-col gap-2">
+        <div>
+          <p className="text-sm font-medium text-[var(--color-ink)]">Cheque especial</p>
+          <p className="text-xs text-[var(--color-ink-faint)]">
+            Quanto você está devendo agora. Esse valor é descontado da sua receita no Dashboard deste mês — atualize aqui
+            conforme o extrato do seu banco.
+          </p>
+        </div>
+        <MoneyInput
+          value={overdraftBalance || ''}
+          onValueChange={(v) => updateSettings({ overdraftBalance: v })}
+        />
+      </Panel>
 
       {incomes.length === 0 ? (
         <EmptyState icon={Wallet} title="Nenhuma renda cadastrada" description="Cadastre seu salário e outras rendas para começar a usar o dashboard." />

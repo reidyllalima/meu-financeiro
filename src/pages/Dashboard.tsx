@@ -15,6 +15,7 @@ import {
   formatCurrency,
   formatDateBR,
   formatPercent,
+  sameMonthKey,
   todayMonthKey,
 } from '../lib/calc';
 import type { MonthKey } from '../types';
@@ -41,19 +42,25 @@ export function Dashboard() {
   const cardPurchases = useStore((s) => s.cardPurchases);
   const cards = useStore((s) => s.cards);
   const categories = useStore((s) => s.categories);
+  const overdraftBalance = useStore((s) => s.settings.overdraftBalance);
   const removeExpense = useStore((s) => s.removeExpense);
   const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
 
   const hasSetup = incomes.length > 0;
 
-  const income = useMemo(() => {
+  const isCurrentMonth = sameMonthKey(month, todayMonthKey());
+  const overdraftDeduction = isCurrentMonth ? overdraftBalance : 0;
+
+  const rawIncome = useMemo(() => {
     return incomes.reduce((sum, inc) => {
       if (inc.recurring) return sum + inc.amount;
       if (inc.month === month.month && inc.year === month.year) return sum + inc.amount;
       return sum;
     }, 0);
   }, [incomes, month]);
+
+  const income = rawIncome - overdraftDeduction;
 
   const monthExpenses = useMemo(() => expensesForMonth(expenses, month), [expenses, month]);
   const monthCardOccurrences = useMemo(() => cardOccurrencesForMonth(cardPurchases, month), [cardPurchases, month]);
@@ -144,6 +151,11 @@ export function Dashboard() {
         <p className={`mt-1 text-3xl font-bold ${balance < 0 ? 'text-red-400' : 'text-white'}`}>
           {formatCurrency(balance)}
         </p>
+        {overdraftDeduction > 0 && (
+          <p className="mt-1 text-xs text-white/60">
+            Receita de {formatCurrency(rawIncome)} já com desconto de {formatCurrency(overdraftDeduction)} do cheque especial
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-4">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-white/60">

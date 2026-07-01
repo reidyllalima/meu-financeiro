@@ -57,7 +57,7 @@ export function useCloudSync(uid: string) {
         cardPurchases: remote.cardPurchases,
         expenses: remote.expenses,
         bills: remote.bills,
-        settings: remote.settings,
+        settings: { ...remote.settings, overdraftBalance: remote.settings.overdraftBalance ?? 0 },
       };
       applyingRemote.current = true;
       useStore.getState().importState(data);
