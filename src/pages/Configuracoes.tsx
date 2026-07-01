@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { IncomesSection } from './configuracoes/IncomesSection';
 import { CardsSection } from './configuracoes/CardsSection';
 import { InstallmentsSection } from './configuracoes/InstallmentsSection';
-import { RecurringBillsSection } from './configuracoes/RecurringBillsSection';
+import { BillsSection } from './configuracoes/BillsSection';
 import { CategoriesSection } from './configuracoes/CategoriesSection';
 import { BackupSection } from './configuracoes/BackupSection';
 
@@ -10,7 +10,7 @@ const TABS = [
   { id: 'receitas', label: 'Receitas' },
   { id: 'cartoes', label: 'Cartões' },
   { id: 'parcelamentos', label: 'Parcelamentos' },
-  { id: 'contas', label: 'Contas fixas' },
+  { id: 'contas', label: 'Contas' },
   { id: 'categorias', label: 'Categorias' },
   { id: 'backup', label: 'Backup' },
 ] as const;
@@ -41,7 +41,7 @@ export function Configuracoes() {
       {tab === 'receitas' && <IncomesSection />}
       {tab === 'cartoes' && <CardsSection />}
       {tab === 'parcelamentos' && <InstallmentsSection />}
-      {tab === 'contas' && <RecurringBillsSection />}
+      {tab === 'contas' && <BillsSection />}
       {tab === 'categorias' && <CategoriesSection />}
       {tab === 'backup' && <BackupSection />}
     </div>

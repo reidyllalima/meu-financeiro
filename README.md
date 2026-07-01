@@ -41,8 +41,8 @@ Depois de instalado, o app abre em tela cheia e funciona mesmo sem internet.
 
 - **Receitas:** cadastre seu salário (marcado como recorrente) e outras rendas pontuais ou recorrentes.
 - **Cartões:** cadastre seus cartões de crédito com limite, dia de fechamento e dia de vencimento.
-- **Parcelamentos:** se você já tem compras parceladas em andamento, cadastre informando o valor da parcela, em qual parcela você está (ex: 3 de 10) e o mês/ano de vencimento da parcela atual — o app projeta automaticamente o restante.
-- **Contas fixas:** cadastre contas recorrentes (aluguel, internet, assinaturas) para entrarem na Previsão.
+- **Parcelamentos:** se você já tem compras parceladas em andamento (no cartão ou financiamentos diretos, sem cartão), cadastre informando o valor da parcela, em qual parcela você está (ex: 3 de 10) e o mês/ano de vencimento da parcela atual — o app projeta automaticamente o restante.
+- **Contas:** cadastre contas recorrentes (aluguel, internet, assinaturas) ou avulsas de um mês específico, para entrarem no checklist de Contas do Mês e na Previsão.
 - **Categorias:** use as categorias padrão ou crie as suas.
 - **Backup:** exporte/importe todos os seus dados em um arquivo `.json`.
 
@@ -58,19 +58,23 @@ Toque no botão **+** (flutuante no celular, no topo da barra lateral no computa
 
 Saldo do mês, receita, gastos, percentual do orçamento utilizado (com alertas), ranking de categorias e a lista de lançamentos do mês — navegue entre meses com as setas.
 
-### 4. Cartões
+### 4. Contas do Mês
+
+Checklist do que você precisa pagar no mês — contas fixas/avulsas, financiamentos parcelados e faturas de cartão aparecem automaticamente numa única lista, com **Total Gastos** e **Saldo** (receita menos gastos). Toque no status **Pendente/Pago** de cada item para marcar como pago conforme for quitando, e acompanhe a barra de progresso. Use **+ Nova conta** para adicionar rapidamente um pagamento avulso deste mês (ex: uma transferência pontual).
+
+### 5. Cartões
 
 Limite total, limite disponível, fatura do mês atual, próxima fatura e as compras em aberto de cada cartão.
 
-### 5. Parcelamentos
+### 6. Parcelamentos
 
-Todas as compras parceladas, com progresso (parcela atual/total) e a data prevista de término.
+Todas as compras parceladas (no cartão ou financiamentos diretos), com progresso (parcela atual/total) e a data prevista de término.
 
-### 6. Previsão
+### 7. Previsão
 
-Os próximos 6 meses com receita prevista, parcelas já comprometidas e contas fixas — para saber quanto do seu salário futuro já está reservado.
+Os próximos 6 meses com receita prevista, parcelas já comprometidas e contas — para saber quanto do seu salário futuro já está reservado.
 
-### 7. Relatórios
+### 8. Relatórios
 
 Evolução mensal, comparação entre meses, gastos por categoria e por cartão.
 

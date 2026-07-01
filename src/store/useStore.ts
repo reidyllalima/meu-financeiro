@@ -1,19 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type {
-  AppSettings,
-  AppState,
-  CardPurchase,
-  Category,
-  CreditCard,
-  Expense,
-  Income,
-  RecurringBill,
-} from '../types';
+import type { AppSettings, AppState, Bill, CardPurchase, Category, CreditCard, Expense, Income, MonthKey } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/categories';
+import { periodKey } from '../lib/calc';
 
 function uid(): string {
   return crypto.randomUUID();
+}
+
+function togglePeriod(periods: string[], key: string): string[] {
+  return periods.includes(key) ? periods.filter((p) => p !== key) : [...periods, key];
 }
 
 const initialState: AppState = {
@@ -22,7 +18,7 @@ const initialState: AppState = {
   cards: [],
   cardPurchases: [],
   expenses: [],
-  recurringBills: [],
+  bills: [],
   settings: {
     currency: 'BRL',
     onboardingDismissed: false,
@@ -36,24 +32,27 @@ interface StoreActions {
   removeIncome: (id: string) => void;
 
   // Cartões
-  addCard: (data: Omit<CreditCard, 'id' | 'createdAt'>) => string;
+  addCard: (data: Omit<CreditCard, 'id' | 'createdAt' | 'paidInvoicePeriods'>) => string;
   updateCard: (id: string, data: Partial<Omit<CreditCard, 'id' | 'createdAt'>>) => void;
   removeCard: (id: string) => void;
+  toggleCardInvoicePaid: (cardId: string, monthKey: MonthKey) => void;
 
-  // Compras no cartão (à vista ou parceladas)
-  addCardPurchase: (data: Omit<CardPurchase, 'id' | 'createdAt'>) => void;
+  // Compras no cartão (à vista ou parceladas) e financiamentos sem cartão
+  addCardPurchase: (data: Omit<CardPurchase, 'id' | 'createdAt' | 'paidPeriods'>) => void;
   updateCardPurchase: (id: string, data: Partial<Omit<CardPurchase, 'id' | 'createdAt'>>) => void;
   removeCardPurchase: (id: string) => void;
+  toggleCardPurchasePaid: (id: string, monthKey: MonthKey) => void;
 
   // Gastos em dinheiro/pix
   addExpense: (data: Omit<Expense, 'id' | 'createdAt'>) => void;
   updateExpense: (id: string, data: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
   removeExpense: (id: string) => void;
 
-  // Contas recorrentes
-  addRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt'>) => void;
-  updateRecurringBill: (id: string, data: Partial<Omit<RecurringBill, 'id' | 'createdAt'>>) => void;
-  removeRecurringBill: (id: string) => void;
+  // Contas do mês (recorrentes ou únicas)
+  addBill: (data: Omit<Bill, 'id' | 'createdAt' | 'paidPeriods'>) => void;
+  updateBill: (id: string, data: Partial<Omit<Bill, 'id' | 'createdAt'>>) => void;
+  removeBill: (id: string) => void;
+  toggleBillPaid: (id: string, monthKey: MonthKey) => void;
 
   // Categorias
   addCategory: (data: Omit<Category, 'id' | 'isCustom'>) => void;
@@ -83,7 +82,9 @@ export const useStore = create<Store>()(
 
       addCard: (data) => {
         const id = uid();
-        set((s) => ({ cards: [...s.cards, { ...data, id, createdAt: new Date().toISOString() }] }));
+        set((s) => ({
+          cards: [...s.cards, { ...data, id, paidInvoicePeriods: [], createdAt: new Date().toISOString() }],
+        }));
         return id;
       },
       updateCard: (id, data) => set((s) => ({ cards: s.cards.map((c) => (c.id === id ? { ...c, ...data } : c)) })),
@@ -92,14 +93,26 @@ export const useStore = create<Store>()(
           cards: s.cards.filter((c) => c.id !== id),
           cardPurchases: s.cardPurchases.filter((p) => p.cardId !== id),
         })),
+      toggleCardInvoicePaid: (cardId, monthKey) =>
+        set((s) => ({
+          cards: s.cards.map((c) =>
+            c.id === cardId ? { ...c, paidInvoicePeriods: togglePeriod(c.paidInvoicePeriods, periodKey(monthKey)) } : c,
+          ),
+        })),
 
       addCardPurchase: (data) =>
         set((s) => ({
-          cardPurchases: [...s.cardPurchases, { ...data, id: uid(), createdAt: new Date().toISOString() }],
+          cardPurchases: [...s.cardPurchases, { ...data, id: uid(), paidPeriods: [], createdAt: new Date().toISOString() }],
         })),
       updateCardPurchase: (id, data) =>
         set((s) => ({ cardPurchases: s.cardPurchases.map((p) => (p.id === id ? { ...p, ...data } : p)) })),
       removeCardPurchase: (id) => set((s) => ({ cardPurchases: s.cardPurchases.filter((p) => p.id !== id) })),
+      toggleCardPurchasePaid: (id, monthKey) =>
+        set((s) => ({
+          cardPurchases: s.cardPurchases.map((p) =>
+            p.id === id ? { ...p, paidPeriods: togglePeriod(p.paidPeriods, periodKey(monthKey)) } : p,
+          ),
+        })),
 
       addExpense: (data) =>
         set((s) => ({ expenses: [...s.expenses, { ...data, id: uid(), createdAt: new Date().toISOString() }] })),
@@ -107,13 +120,16 @@ export const useStore = create<Store>()(
         set((s) => ({ expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...data } : e)) })),
       removeExpense: (id) => set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
 
-      addRecurringBill: (data) =>
+      addBill: (data) =>
+        set((s) => ({ bills: [...s.bills, { ...data, id: uid(), paidPeriods: [], createdAt: new Date().toISOString() }] })),
+      updateBill: (id, data) => set((s) => ({ bills: s.bills.map((b) => (b.id === id ? { ...b, ...data } : b)) })),
+      removeBill: (id) => set((s) => ({ bills: s.bills.filter((b) => b.id !== id) })),
+      toggleBillPaid: (id, monthKey) =>
         set((s) => ({
-          recurringBills: [...s.recurringBills, { ...data, id: uid(), createdAt: new Date().toISOString() }],
+          bills: s.bills.map((b) =>
+            b.id === id ? { ...b, paidPeriods: togglePeriod(b.paidPeriods, periodKey(monthKey)) } : b,
+          ),
         })),
-      updateRecurringBill: (id, data) =>
-        set((s) => ({ recurringBills: s.recurringBills.map((b) => (b.id === id ? { ...b, ...data } : b)) })),
-      removeRecurringBill: (id) => set((s) => ({ recurringBills: s.recurringBills.filter((b) => b.id !== id) })),
 
       addCategory: (data) =>
         set((s) => ({ categories: [...s.categories, { ...data, id: uid(), isCustom: true }] })),
@@ -122,16 +138,41 @@ export const useStore = create<Store>()(
       updateSettings: (data) => set((s) => ({ settings: { ...s.settings, ...data } })),
 
       exportState: () => {
-        const { categories, incomes, cards, cardPurchases, expenses, recurringBills, settings } = get();
-        return { categories, incomes, cards, cardPurchases, expenses, recurringBills, settings };
+        const { categories, incomes, cards, cardPurchases, expenses, bills, settings } = get();
+        return { categories, incomes, cards, cardPurchases, expenses, bills, settings };
       },
       importState: (data) => set(() => ({ ...data })),
       resetAllData: () => set(() => ({ ...initialState, categories: DEFAULT_CATEGORIES })),
     }),
     {
       name: 'gtp-faturas-storage',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      migrate: (persisted: any, version) => {
+        if (version < 2) {
+          persisted.cards = (persisted.cards ?? []).map((c: Omit<CreditCard, 'paidInvoicePeriods'>) => ({
+            paidInvoicePeriods: [],
+            ...c,
+          }));
+          persisted.cardPurchases = (persisted.cardPurchases ?? []).map((p: Omit<CardPurchase, 'paidPeriods'>) => ({
+            paidPeriods: [],
+            ...p,
+          }));
+          persisted.bills = (persisted.recurringBills ?? []).map((b: { id: string; description: string; amount: number; categoryId: string; dueDay: number; active: boolean; createdAt: string }) => ({
+            id: b.id,
+            description: b.description,
+            amount: b.amount,
+            categoryId: b.categoryId,
+            recurring: true,
+            active: b.active,
+            paidPeriods: [],
+            createdAt: b.createdAt,
+          }));
+          delete persisted.recurringBills;
+        }
+        return persisted;
+      },
     },
   ),
 );

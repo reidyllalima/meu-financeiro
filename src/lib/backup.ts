@@ -37,7 +37,7 @@ export function parseBackupFile(text: string): AppState {
     throw new Error('Arquivo de backup inválido.');
   }
 
-  const required = ['categories', 'incomes', 'cards', 'cardPurchases', 'expenses', 'recurringBills', 'settings'];
+  const required = ['categories', 'incomes', 'cards', 'cardPurchases', 'expenses', 'bills', 'settings'];
   for (const key of required) {
     if (!(key in data)) {
       throw new Error('Arquivo de backup incompleto ou corrompido.');

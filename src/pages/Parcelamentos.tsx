@@ -61,7 +61,7 @@ export function Parcelamentos() {
         <EmptyState
           icon={CalendarClock}
           title={tab === 'ativos' ? 'Nenhum parcelamento em andamento' : 'Nenhum parcelamento concluído'}
-          description="Compras parceladas no cartão aparecem aqui automaticamente."
+          description="Compras parceladas no cartão ou financiamentos diretos aparecem aqui automaticamente."
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -84,7 +84,7 @@ export function Parcelamentos() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-[var(--color-ink)]">{p.description}</p>
-                    <p className="text-xs text-[var(--color-ink-faint)]">{card?.name ?? 'Cartão'}</p>
+                    <p className="text-xs text-[var(--color-ink-faint)]">{card?.name ?? 'Sem cartão (financiamento direto)'}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>

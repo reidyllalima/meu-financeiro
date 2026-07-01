@@ -15,6 +15,8 @@ const MONTH_NAMES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+const NO_CARD = '';
+
 function emptyForm(cardId: string, categoryId: string) {
   const today = todayMonthKey();
   return {
@@ -40,23 +42,23 @@ export function InstallmentsSection() {
   const plans = cardPurchases.filter((p) => p.totalInstallments > 1);
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [form, setForm] = useState(() => emptyForm(cards[0]?.id ?? '', categories[0]?.id ?? ''));
+  const [form, setForm] = useState(() => emptyForm(NO_CARD, categories[0]?.id ?? ''));
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const years = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   function openCreate() {
-    setForm(emptyForm(cards[0]?.id ?? '', categories[0]?.id ?? ''));
+    setForm(emptyForm(NO_CARD, categories[0]?.id ?? ''));
     setSheetOpen(true);
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.description.trim() || !form.cardId || form.installmentValue <= 0 || form.totalInstallments < 1) return;
+    if (!form.description.trim() || form.installmentValue <= 0 || form.totalInstallments < 1) return;
 
     addCardPurchase({
       description: form.description.trim(),
-      cardId: form.cardId,
+      cardId: form.cardId || undefined,
       categoryId: form.categoryId,
       installmentValue: form.installmentValue,
       totalAmount: roundCurrency(form.installmentValue * form.totalInstallments),
@@ -68,15 +70,6 @@ export function InstallmentsSection() {
     });
     showToast('Parcelamento cadastrado');
     setSheetOpen(false);
-  }
-
-  if (cards.length === 0) {
-    return (
-      <div className="flex flex-col gap-3">
-        <h2 className="font-semibold text-[var(--color-ink)]">Parcelamentos existentes</h2>
-        <EmptyState icon={CalendarClock} title="Cadastre um cartão primeiro" description="Você precisa de pelo menos um cartão para registrar parcelamentos." />
-      </div>
-    );
   }
 
   return (
@@ -106,7 +99,7 @@ export function InstallmentsSection() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[var(--color-ink)]">{p.description}</p>
                   <p className="text-xs text-[var(--color-ink-faint)]">
-                    {card?.name} · {p.anchorInstallmentNumber}/{p.totalInstallments} parcelas
+                    {card?.name ?? 'Sem cartão (financiamento direto)'} · {p.anchorInstallmentNumber}/{p.totalInstallments} parcelas
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
@@ -131,7 +124,8 @@ export function InstallmentsSection() {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             required
           />
-          <SelectField label="Cartão" value={form.cardId} onChange={(e) => setForm({ ...form, cardId: e.target.value })} required>
+          <SelectField label="Cartão" value={form.cardId} onChange={(e) => setForm({ ...form, cardId: e.target.value })}>
+            <option value={NO_CARD}>Sem cartão (financiamento direto)</option>
             {cards.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}

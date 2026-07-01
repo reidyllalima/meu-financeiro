@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { LineChart, BarChart3, Settings, ChevronRight } from 'lucide-react';
+import { CalendarClock, LineChart, BarChart3, Settings, ChevronRight } from 'lucide-react';
 import { Sheet } from '../ui/Sheet';
 import { useUiStore } from '../../store/useUiStore';
 
 const items = [
+  { to: '/parcelamentos', label: 'Parcelamentos', description: 'Progresso de todas as compras parceladas e financiamentos', icon: CalendarClock },
   { to: '/previsao', label: 'Previsão financeira', description: 'Quanto do seu salário futuro já está comprometido', icon: LineChart },
   { to: '/relatorios', label: 'Relatórios', description: 'Gastos por categoria, cartão e evolução mensal', icon: BarChart3 },
   { to: '/configuracoes', label: 'Configurações', description: 'Receitas, cartões, categorias e backup', icon: Settings },

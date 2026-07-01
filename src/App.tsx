@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Contas = lazy(() => import('./pages/Contas').then((m) => ({ default: m.Contas })));
 const Cartoes = lazy(() => import('./pages/Cartoes').then((m) => ({ default: m.Cartoes })));
 const Parcelamentos = lazy(() => import('./pages/Parcelamentos').then((m) => ({ default: m.Parcelamentos })));
 const Previsao = lazy(() => import('./pages/Previsao').then((m) => ({ default: m.Previsao })));
@@ -24,6 +25,7 @@ function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Dashboard />} />
+            <Route path="contas" element={<Contas />} />
             <Route path="cartoes" element={<Cartoes />} />
             <Route path="parcelamentos" element={<Parcelamentos />} />
             <Route path="previsao" element={<Previsao />} />

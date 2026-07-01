@@ -1,6 +1,6 @@
 import { addMonths, differenceInCalendarMonths, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { CardPurchase, CreditCard, Expense, Income, MonthKey, RecurringBill } from '../types';
+import type { Bill, CardPurchase, CreditCard, Expense, Income, MonthKey } from '../types';
 
 // ---------- MonthKey helpers ----------
 
@@ -27,6 +27,11 @@ export function sameMonthKey(a: MonthKey, b: MonthKey): boolean {
 
 export function todayMonthKey(): MonthKey {
   return dateToMonthKey(new Date());
+}
+
+/** Chave "YYYY-MM" usada para marcar períodos (faturas/contas/parcelas) como pagos. */
+export function periodKey(monthKey: MonthKey): string {
+  return `${monthKey.year}-${String(monthKey.month + 1).padStart(2, '0')}`;
 }
 
 export function parseISODate(iso: string): Date {
@@ -161,6 +166,14 @@ export function cardOccurrencesForCardInMonth(
   );
 }
 
+/** Compras parceladas/financiamentos sem cartão vinculado (ex: celular financiado, dívida pessoal). */
+export function cardlessOccurrencesForMonth(purchases: CardPurchase[], monthKey: MonthKey): CardOccurrence[] {
+  return cardOccurrencesForMonth(
+    purchases.filter((p) => !p.cardId),
+    monthKey,
+  );
+}
+
 // ---------- Receitas ----------
 
 export function totalIncomeForMonth(incomes: Income[], monthKey: MonthKey): number {
@@ -220,6 +233,30 @@ export function cardTotalsForMonth(cardPurchases: CardPurchase[], cards: CreditC
   });
 }
 
+// ---------- Contas (Bill) ----------
+
+/** Se esta conta se aplica ao mês informado (recorrente ativa, ou única daquele mês/ano). */
+export function billAppliesToMonth(bill: Bill, monthKey: MonthKey): boolean {
+  if (bill.recurring) return bill.active;
+  return bill.month === monthKey.month && bill.year === monthKey.year;
+}
+
+export function billsForMonth(bills: Bill[], monthKey: MonthKey): Bill[] {
+  return bills.filter((b) => billAppliesToMonth(b, monthKey));
+}
+
+export function isBillPaidForMonth(bill: Bill, monthKey: MonthKey): boolean {
+  return bill.paidPeriods.includes(periodKey(monthKey));
+}
+
+export function isCardPurchasePaidForMonth(purchase: CardPurchase, monthKey: MonthKey): boolean {
+  return purchase.paidPeriods.includes(periodKey(monthKey));
+}
+
+export function isCardInvoicePaidForMonth(card: CreditCard, monthKey: MonthKey): boolean {
+  return card.paidInvoicePeriods.includes(periodKey(monthKey));
+}
+
 // ---------- Cartões: limite ----------
 
 export function cardUsedLimit(purchases: CardPurchase[], cardId: string, today: MonthKey = todayMonthKey()): number {
@@ -241,22 +278,84 @@ export interface MonthForecast {
 export function buildForecast(
   incomes: Income[],
   cardPurchases: CardPurchase[],
-  recurringBills: RecurringBill[],
+  bills: Bill[],
   monthsAhead: number,
   startMonth: MonthKey = todayMonthKey(),
 ): MonthForecast[] {
-  const activeBills = recurringBills.filter((b) => b.active);
-  const billsTotal = activeBills.reduce((s, b) => s + b.amount, 0);
-
   const result: MonthForecast[] = [];
   for (let i = 0; i < monthsAhead; i++) {
     const monthKey = addMonthsToKey(startMonth, i);
     const income = totalIncomeForMonth(incomes, monthKey);
     const cardCommitted = cardOccurrencesForMonth(cardPurchases, monthKey).reduce((s, o) => s + o.value, 0);
+    const billsTotal = billsForMonth(bills, monthKey).reduce((s, b) => s + b.amount, 0);
     const balance = income - cardCommitted - billsTotal;
     result.push({ monthKey, income, cardCommitted, recurringBills: billsTotal, balance });
   }
   return result;
+}
+
+// ---------- Contas do Mês (checklist unificado) ----------
+
+export type ChecklistItemKind = 'bill' | 'purchase' | 'invoice';
+
+export interface ChecklistItem {
+  key: string; // chave estável usada para marcar pago/pendente
+  kind: ChecklistItemKind;
+  description: string;
+  badge?: string; // ex: "3/12"
+  amount: number;
+  categoryId?: string;
+  paid: boolean;
+  refId: string; // id da bill/compra/cartão de origem
+}
+
+export function buildMonthlyChecklist(
+  bills: Bill[],
+  cardPurchases: CardPurchase[],
+  cards: CreditCard[],
+  monthKey: MonthKey,
+): ChecklistItem[] {
+  const items: ChecklistItem[] = [];
+
+  for (const bill of billsForMonth(bills, monthKey)) {
+    items.push({
+      key: `bill:${bill.id}`,
+      kind: 'bill',
+      description: bill.description,
+      amount: bill.amount,
+      categoryId: bill.categoryId,
+      paid: isBillPaidForMonth(bill, monthKey),
+      refId: bill.id,
+    });
+  }
+
+  for (const occ of cardlessOccurrencesForMonth(cardPurchases, monthKey)) {
+    items.push({
+      key: `purchase:${occ.purchase.id}`,
+      kind: 'purchase',
+      description: occ.purchase.description,
+      badge: occ.purchase.totalInstallments > 1 ? `${occ.installmentNumber}/${occ.purchase.totalInstallments}` : undefined,
+      amount: occ.value,
+      categoryId: occ.purchase.categoryId,
+      paid: isCardPurchasePaidForMonth(occ.purchase, monthKey),
+      refId: occ.purchase.id,
+    });
+  }
+
+  for (const card of cards) {
+    const total = cardOccurrencesForCardInMonth(cardPurchases, card.id, monthKey).reduce((s, o) => s + o.value, 0);
+    if (total <= 0) continue;
+    items.push({
+      key: `invoice:${card.id}`,
+      kind: 'invoice',
+      description: `Fatura ${card.name}`,
+      amount: total,
+      paid: isCardInvoicePaidForMonth(card, monthKey),
+      refId: card.id,
+    });
+  }
+
+  return items;
 }
 
 // ---------- Parcelamento: cálculo do valor de cada parcela ----------

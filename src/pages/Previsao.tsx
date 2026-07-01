@@ -11,11 +11,11 @@ const MONTHS_AHEAD = 6;
 export function Previsao() {
   const incomes = useStore((s) => s.incomes);
   const cardPurchases = useStore((s) => s.cardPurchases);
-  const recurringBills = useStore((s) => s.recurringBills);
+  const bills = useStore((s) => s.bills);
 
   const forecast = useMemo(
-    () => buildForecast(incomes, cardPurchases, recurringBills, MONTHS_AHEAD),
-    [incomes, cardPurchases, recurringBills],
+    () => buildForecast(incomes, cardPurchases, bills, MONTHS_AHEAD),
+    [incomes, cardPurchases, bills],
   );
 
   const chartData = forecast.map((f) => ({
@@ -24,7 +24,7 @@ export function Previsao() {
     Comprometido: f.cardCommitted + f.recurringBills,
   }));
 
-  const hasAnyData = incomes.length > 0 || cardPurchases.length > 0 || recurringBills.length > 0;
+  const hasAnyData = incomes.length > 0 || cardPurchases.length > 0 || bills.length > 0;
 
   return (
     <div className="flex flex-col gap-5 pb-4">
@@ -39,7 +39,7 @@ export function Previsao() {
         <EmptyState
           icon={LineChartIcon}
           title="Sem dados suficientes"
-          description="Cadastre sua renda, cartões e contas recorrentes em Configurações para ver a previsão."
+          description="Cadastre sua renda, cartões e contas em Configurações para ver a previsão."
         />
       ) : (
         <>

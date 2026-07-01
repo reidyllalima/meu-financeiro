@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, CalendarClock, Plus, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, CreditCard, Plus, MoreHorizontal } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
 
 const itemClass = (isActive: boolean) =>
@@ -32,9 +32,9 @@ export function BottomNav() {
         </button>
       </div>
 
-      <NavLink to="/parcelamentos" className={({ isActive }) => itemClass(isActive)}>
-        <CalendarClock className="h-5 w-5" />
-        Parcelas
+      <NavLink to="/contas" className={({ isActive }) => itemClass(isActive)}>
+        <ClipboardList className="h-5 w-5" />
+        Contas
       </NavLink>
       <button onClick={openMoreSheet} className={itemClass(false)}>
         <MoreHorizontal className="h-5 w-5" />
