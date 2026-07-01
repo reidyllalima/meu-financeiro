@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, HandCoins, Pencil, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { MonthSwitcher } from '../components/ui/MonthSwitcher';
@@ -25,7 +25,7 @@ import {
   sameMonthKey,
   todayMonthKey,
 } from '../lib/calc';
-import type { MonthKey } from '../types';
+import type { Income, MonthKey } from '../types';
 import { getCategoryIcon } from '../lib/icons';
 
 const FORECAST_MONTHS_AHEAD = 3;
@@ -56,27 +56,54 @@ export function Dashboard() {
   const categories = useStore((s) => s.categories);
   const overdraftBalance = useStore((s) => s.settings.overdraftBalance);
   const addIncome = useStore((s) => s.addIncome);
+  const updateIncome = useStore((s) => s.updateIncome);
+  const removeIncome = useStore((s) => s.removeIncome);
   const removeExpense = useStore((s) => s.removeExpense);
   const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
 
   const [extraBalanceOpen, setExtraBalanceOpen] = useState(false);
+  const [editingIncomeId, setEditingIncomeId] = useState<string | null>(null);
   const [extraBalanceForm, setExtraBalanceForm] = useState({ description: '', amount: '' as number | '' });
+  const [pendingIncomeDelete, setPendingIncomeDelete] = useState<Income | null>(null);
 
-  function handleAddExtraBalance(e: FormEvent) {
+  function openAddExtraBalance() {
+    setEditingIncomeId(null);
+    setExtraBalanceForm({ description: '', amount: '' });
+    setExtraBalanceOpen(true);
+  }
+
+  function openEditExtraBalance(inc: Income) {
+    setEditingIncomeId(inc.id);
+    setExtraBalanceForm({ description: inc.description, amount: inc.amount });
+    setExtraBalanceOpen(true);
+  }
+
+  function handleSaveExtraBalance(e: FormEvent) {
     e.preventDefault();
     if (!extraBalanceForm.description.trim() || !extraBalanceForm.amount || extraBalanceForm.amount <= 0) return;
-    addIncome({
-      description: extraBalanceForm.description.trim(),
-      amount: extraBalanceForm.amount,
-      recurring: false,
-      month: month.month,
-      year: month.year,
-    });
-    showToast('Saldo adicionado');
+    if (editingIncomeId) {
+      updateIncome(editingIncomeId, { description: extraBalanceForm.description.trim(), amount: extraBalanceForm.amount });
+      showToast('Saldo atualizado');
+    } else {
+      addIncome({
+        description: extraBalanceForm.description.trim(),
+        amount: extraBalanceForm.amount,
+        recurring: false,
+        month: month.month,
+        year: month.year,
+      });
+      showToast('Saldo adicionado');
+    }
     setExtraBalanceForm({ description: '', amount: '' });
+    setEditingIncomeId(null);
     setExtraBalanceOpen(false);
   }
+
+  const monthExtraBalances = useMemo(
+    () => incomes.filter((inc) => !inc.recurring && inc.month === month.month && inc.year === month.year),
+    [incomes, month],
+  );
 
   const upcomingForecast = useMemo(
     () => buildForecast(incomes, cardPurchases, bills, FORECAST_MONTHS_AHEAD, addMonthsToKey(todayMonthKey(), 1)),
@@ -207,12 +234,42 @@ export function Dashboard() {
           </div>
         </div>
         <button
-          onClick={() => setExtraBalanceOpen(true)}
+          onClick={openAddExtraBalance}
           className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/10 py-2 text-sm font-medium text-white hover:bg-white/15"
         >
           <Plus className="h-4 w-4" /> Adicionar saldo
         </button>
       </Panel>
+
+      {monthExtraBalances.length > 0 && (
+        <Panel padded={false} className="divide-y divide-slate-100">
+          {monthExtraBalances.map((inc) => (
+            <div key={inc.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium leading-snug text-[var(--color-ink)]">{inc.description}</p>
+                <p className="text-xs text-[var(--color-ink-faint)]">Saldo extra</p>
+              </div>
+              <p className="shrink-0 text-sm font-semibold text-[var(--color-brand-600)]">{formatCurrency(inc.amount)}</p>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => openEditExtraBalance(inc)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100"
+                  aria-label="Editar saldo"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPendingIncomeDelete(inc)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                  aria-label="Remover saldo"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </Panel>
+      )}
 
       <Panel>
         <div className="flex items-center justify-between">
@@ -348,8 +405,25 @@ export function Dashboard() {
         onCancel={() => setPendingDelete(null)}
       />
 
-      <Sheet open={extraBalanceOpen} onClose={() => setExtraBalanceOpen(false)} title={`Adicionar saldo · ${formatMonthLabel(month)}`}>
-        <form onSubmit={handleAddExtraBalance} className="flex flex-col gap-4">
+      <ConfirmDialog
+        open={!!pendingIncomeDelete}
+        title="Remover saldo?"
+        description="Essa ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => {
+          if (pendingIncomeDelete) removeIncome(pendingIncomeDelete.id);
+          showToast('Saldo removido');
+          setPendingIncomeDelete(null);
+        }}
+        onCancel={() => setPendingIncomeDelete(null)}
+      />
+
+      <Sheet
+        open={extraBalanceOpen}
+        onClose={() => setExtraBalanceOpen(false)}
+        title={editingIncomeId ? 'Editar saldo' : `Adicionar saldo · ${formatMonthLabel(month)}`}
+      >
+        <form onSubmit={handleSaveExtraBalance} className="flex flex-col gap-4">
           <p className="text-sm text-[var(--color-ink-faint)]">
             Dinheiro que você recebeu fora do salário — um freela, um presente, um reembolso — e que entra como saldo deste mês.
           </p>
@@ -368,7 +442,7 @@ export function Dashboard() {
             required
           />
           <Button type="submit" size="lg" full disabled={!extraBalanceForm.description.trim() || !extraBalanceForm.amount}>
-            Adicionar
+            {editingIncomeId ? 'Salvar alterações' : 'Adicionar'}
           </Button>
         </form>
       </Sheet>
