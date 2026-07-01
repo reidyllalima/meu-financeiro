@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Banknote, HandCoins, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Sheet } from './ui/Sheet';
 import { Button } from './ui/Button';
@@ -12,6 +12,7 @@ import {
   formatCurrency,
   invoiceMonthForPurchase,
   parseISODate,
+  roundCurrency,
   todayISODate,
 } from '../lib/calc';
 
@@ -34,14 +35,18 @@ export function QuickAddModal() {
   const [date, setDate] = useState(todayISODate());
   const [isInstallment, setIsInstallment] = useState(false);
   const [installments, setInstallments] = useState<number | ''>('');
+  const [installmentValue, setInstallmentValue] = useState<number | ''>('');
 
   const selectedCard = typeof payment === 'object' ? cards.find((c) => c.id === payment.cardId) : undefined;
   const showInstallmentOption = selectedCard !== undefined || payment === 'fiado';
 
-  const installmentPreview = useMemo(() => {
-    if (!amount || !isInstallment || !installments || installments < 2) return null;
-    return computeInstallmentValue(amount, installments);
-  }, [amount, isInstallment, installments]);
+  // Sugere o valor da parcela dividindo igualmente; o usuário pode ajustar
+  // (a fatura real pode ter juros e não bater com a divisão exata).
+  useEffect(() => {
+    if (isInstallment && amount && installments && installments >= 2) {
+      setInstallmentValue(computeInstallmentValue(amount, installments));
+    }
+  }, [amount, installments, isInstallment]);
 
   function resetForm() {
     setDescription('');
@@ -51,6 +56,7 @@ export function QuickAddModal() {
     setDate(todayISODate());
     setIsInstallment(false);
     setInstallments('');
+    setInstallmentValue('');
   }
 
   function handleClose() {
@@ -61,13 +67,14 @@ export function QuickAddModal() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amount || amount <= 0 || !description.trim()) return;
-    if (showInstallmentOption && isInstallment && !installments) return;
+    if (showInstallmentOption && isInstallment && (!installments || !installmentValue || installmentValue <= 0)) return;
 
     if (payment === 'dinheiro' || payment === 'pix') {
       addExpense({ description: description.trim(), amount, categoryId, paymentMethod: payment, date });
     } else if (selectedCard || payment === 'fiado') {
       const total = isInstallment ? Math.max(2, Number(installments) || 2) : 1;
-      const installmentValue = total > 1 ? computeInstallmentValue(amount, total) : amount;
+      const finalInstallmentValue = total > 1 ? Number(installmentValue) : amount;
+      const totalAmount = total > 1 ? roundCurrency(finalInstallmentValue * total) : amount;
       const anchorMonthKey = selectedCard
         ? invoiceMonthForPurchase(date, selectedCard.closingDay, selectedCard.dueDay)
         : dateToMonthKey(parseISODate(date));
@@ -75,8 +82,8 @@ export function QuickAddModal() {
         description: description.trim(),
         categoryId,
         cardId: selectedCard?.id,
-        totalAmount: amount,
-        installmentValue,
+        totalAmount,
+        installmentValue: finalInstallmentValue,
         totalInstallments: total,
         anchorInstallmentNumber: 1,
         anchorMonth: anchorMonthKey.month,
@@ -165,21 +172,30 @@ export function QuickAddModal() {
           <div className="rounded-xl bg-slate-50 p-3.5">
             <Toggle checked={isInstallment} onChange={setIsInstallment} label="Compra parcelada?" />
             {isInstallment && (
-              <div className="mt-3 flex items-center gap-3">
-                <TextField
-                  type="number"
-                  min={2}
-                  max={48}
-                  placeholder="Ex: 3"
-                  value={installments}
-                  onChange={(e) => setInstallments(e.target.value === '' ? '' : parseInt(e.target.value))}
-                  className="w-24"
+              <div className="mt-3 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <TextField
+                    type="number"
+                    min={2}
+                    max={48}
+                    placeholder="Ex: 3"
+                    value={installments}
+                    onChange={(e) => setInstallments(e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
+                </div>
+                <MoneyInput
+                  label="Valor de cada parcela"
+                  hint="Ajuste aqui se a fatura tiver juros — não precisa ser o valor total dividido certinho."
+                  value={installmentValue}
+                  onValueChange={setInstallmentValue}
+                  required
                 />
-                <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
-                {installmentPreview !== null && (
-                  <span className="ml-auto text-sm font-medium text-[var(--color-ink)]">
-                    {installments}x de {formatCurrency(installmentPreview)}
-                  </span>
+                {installments && installmentValue && (
+                  <p className="text-xs text-[var(--color-ink-faint)]">
+                    Total: {installments}x de {formatCurrency(installmentValue)} = {formatCurrency(roundCurrency(installmentValue * Number(installments)))}
+                  </p>
                 )}
               </div>
             )}
@@ -190,7 +206,11 @@ export function QuickAddModal() {
           type="submit"
           size="lg"
           full
-          disabled={!amount || !description.trim() || (showInstallmentOption && isInstallment && !installments)}
+          disabled={
+            !amount ||
+            !description.trim() ||
+            (showInstallmentOption && isInstallment && (!installments || !installmentValue))
+          }
         >
           Salvar gasto
         </Button>

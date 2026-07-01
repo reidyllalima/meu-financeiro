@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Plus, ChevronDown, ChevronUp, CheckCircle2, CircleDashed } from 'lucide-react';
+import { CreditCard, Plus, ChevronDown, ChevronUp, CheckCircle2, CircleDashed, Pencil, Trash2 } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -9,6 +9,7 @@ import { MonthSwitcher } from '../components/ui/MonthSwitcher';
 import { Sheet } from '../components/ui/Sheet';
 import { MoneyInput, SelectField, TextField } from '../components/ui/fields';
 import { Toggle } from '../components/ui/Toggle';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useStore } from '../store/useStore';
 import { useUiStore } from '../store/useUiStore';
 import {
@@ -21,10 +22,11 @@ import {
   invoiceAlertLevel,
   invoiceMonthForPurchase,
   isCardInvoicePaidForMonth,
+  roundCurrency,
   todayISODate,
   todayMonthKey,
 } from '../lib/calc';
-import type { CreditCard as CreditCardType, MonthKey } from '../types';
+import type { CardPurchase, CreditCard as CreditCardType, MonthKey } from '../types';
 import { getCategoryIcon } from '../lib/icons';
 
 function emptyPurchaseForm(categoryId: string) {
@@ -35,6 +37,7 @@ function emptyPurchaseForm(categoryId: string) {
     date: todayISODate(),
     isInstallment: false,
     installments: '' as number | '',
+    installmentValue: '' as number | '',
   };
 }
 
@@ -44,48 +47,86 @@ export function Cartoes() {
   const categories = useStore((s) => s.categories);
   const toggleCardInvoicePaid = useStore((s) => s.toggleCardInvoicePaid);
   const addCardPurchase = useStore((s) => s.addCardPurchase);
+  const updateCardPurchase = useStore((s) => s.updateCardPurchase);
+  const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
 
   const [month, setMonth] = useState<MonthKey>(todayMonthKey());
   const [expandedId, setExpandedId] = useState<string | null>(cards[0]?.id ?? null);
 
   const [purchaseCard, setPurchaseCard] = useState<CreditCardType | null>(null);
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
   const [form, setForm] = useState(() => emptyPurchaseForm(categories[0]?.id ?? ''));
+  const [pendingDeletePurchase, setPendingDeletePurchase] = useState<CardPurchase | null>(null);
 
-  const installmentPreview = useMemo(() => {
-    if (!form.amount || !form.isInstallment || !form.installments || form.installments < 2) return null;
-    return computeInstallmentValue(form.amount, form.installments);
-  }, [form.amount, form.isInstallment, form.installments]);
+  // Sugere o valor da parcela dividindo igualmente; o usuário pode ajustar
+  // (a fatura real pode ter juros e não bater com a divisão exata).
+  useEffect(() => {
+    if (!editingPurchaseId && form.isInstallment && form.amount && form.installments && form.installments >= 2) {
+      const suggested = computeInstallmentValue(form.amount, form.installments);
+      setForm((f) => (f.installmentValue === suggested ? f : { ...f, installmentValue: suggested }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.amount, form.installments, form.isInstallment, editingPurchaseId]);
 
   function openAddPurchase(card: CreditCardType) {
+    setEditingPurchaseId(null);
     setForm(emptyPurchaseForm(categories[0]?.id ?? ''));
     setPurchaseCard(card);
   }
 
-  function handleAddPurchase(e: FormEvent) {
+  function openEditPurchase(purchase: CardPurchase, card: CreditCardType) {
+    setEditingPurchaseId(purchase.id);
+    setForm({
+      description: purchase.description,
+      amount: purchase.installmentValue,
+      categoryId: purchase.categoryId,
+      date: purchase.purchaseDate,
+      isInstallment: purchase.totalInstallments > 1,
+      installments: purchase.totalInstallments,
+      installmentValue: purchase.installmentValue,
+    });
+    setPurchaseCard(card);
+  }
+
+  function handleSavePurchase(e: FormEvent) {
     e.preventDefault();
-    if (!purchaseCard || !form.amount || form.amount <= 0 || !form.description.trim()) return;
-    if (form.isInstallment && !form.installments) return;
+    if (!purchaseCard || !form.description.trim()) return;
+    if (form.isInstallment && (!form.installments || !form.installmentValue)) return;
+    if (!form.isInstallment && !form.amount) return;
 
     const total = form.isInstallment ? Math.max(2, Number(form.installments) || 2) : 1;
-    const installmentValue = total > 1 ? computeInstallmentValue(form.amount, total) : form.amount;
-    const anchorMonthKey = invoiceMonthForPurchase(form.date, purchaseCard.closingDay, purchaseCard.dueDay);
+    const installmentValue = form.isInstallment ? Number(form.installmentValue) : Number(form.amount);
+    const totalAmount = roundCurrency(installmentValue * total);
 
-    addCardPurchase({
-      description: form.description.trim(),
-      categoryId: form.categoryId,
-      cardId: purchaseCard.id,
-      totalAmount: form.amount,
-      installmentValue,
-      totalInstallments: total,
-      anchorInstallmentNumber: 1,
-      anchorMonth: anchorMonthKey.month,
-      anchorYear: anchorMonthKey.year,
-      purchaseDate: form.date,
-    });
+    if (editingPurchaseId) {
+      updateCardPurchase(editingPurchaseId, {
+        description: form.description.trim(),
+        categoryId: form.categoryId,
+        installmentValue,
+        totalInstallments: total,
+        totalAmount,
+      });
+      showToast('Compra atualizada');
+    } else {
+      const anchorMonthKey = invoiceMonthForPurchase(form.date, purchaseCard.closingDay, purchaseCard.dueDay);
+      addCardPurchase({
+        description: form.description.trim(),
+        categoryId: form.categoryId,
+        cardId: purchaseCard.id,
+        totalAmount,
+        installmentValue,
+        totalInstallments: total,
+        anchorInstallmentNumber: 1,
+        anchorMonth: anchorMonthKey.month,
+        anchorYear: anchorMonthKey.year,
+        purchaseDate: form.date,
+      });
+      showToast('Compra registrada');
+    }
 
-    showToast('Compra registrada');
     setPurchaseCard(null);
+    setEditingPurchaseId(null);
   }
 
   return (
@@ -222,7 +263,25 @@ export function Cartoes() {
                               {p.totalInstallments > 1 ? `Parcela ${occ.installmentNumber}/${p.totalInstallments}` : 'À vista'}
                             </p>
                           </div>
-                          <p className="shrink-0 text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(occ.value)}</p>
+                          <div className="flex shrink-0 flex-col items-end gap-2">
+                            <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(occ.value)}</p>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => openEditPurchase(p, card)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100"
+                                aria-label="Editar compra"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setPendingDeletePurchase(p)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                                aria-label="Remover compra"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       );
                     })
@@ -236,10 +295,19 @@ export function Cartoes() {
 
       <Sheet
         open={!!purchaseCard}
-        onClose={() => setPurchaseCard(null)}
-        title={purchaseCard ? `Nova compra · ${purchaseCard.name}` : 'Nova compra'}
+        onClose={() => {
+          setPurchaseCard(null);
+          setEditingPurchaseId(null);
+        }}
+        title={
+          purchaseCard
+            ? `${editingPurchaseId ? 'Editar compra' : 'Nova compra'} · ${purchaseCard.name}`
+            : editingPurchaseId
+              ? 'Editar compra'
+              : 'Nova compra'
+        }
       >
-        <form onSubmit={handleAddPurchase} className="flex flex-col gap-4">
+        <form onSubmit={handleSavePurchase} className="flex flex-col gap-4">
           <TextField
             label="Descrição"
             placeholder="Ex: Mercado, Farmácia, Notebook..."
@@ -249,10 +317,16 @@ export function Cartoes() {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <MoneyInput label="Valor" value={form.amount} onValueChange={(v) => setForm({ ...form, amount: v })} required />
-            <TextField label="Data" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-          </div>
+          {editingPurchaseId ? (
+            !form.isInstallment && (
+              <MoneyInput label="Valor" value={form.amount} onValueChange={(v) => setForm({ ...form, amount: v })} required />
+            )
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <MoneyInput label="Valor" value={form.amount} onValueChange={(v) => setForm({ ...form, amount: v })} required />
+              <TextField label="Data" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            </div>
+          )}
 
           <SelectField label="Categoria" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
             {categories.map((cat) => (
@@ -263,21 +337,30 @@ export function Cartoes() {
           <div className="rounded-xl bg-slate-50 p-3.5">
             <Toggle checked={form.isInstallment} onChange={(v) => setForm({ ...form, isInstallment: v })} label="Compra parcelada?" />
             {form.isInstallment ? (
-              <div className="mt-3 flex items-center gap-3">
-                <TextField
-                  type="number"
-                  min={2}
-                  max={48}
-                  placeholder="Ex: 3"
-                  value={form.installments}
-                  onChange={(e) => setForm({ ...form, installments: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                  className="w-24"
+              <div className="mt-3 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <TextField
+                    type="number"
+                    min={2}
+                    max={48}
+                    placeholder="Ex: 3"
+                    value={form.installments}
+                    onChange={(e) => setForm({ ...form, installments: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
+                </div>
+                <MoneyInput
+                  label="Valor de cada parcela"
+                  hint="Ajuste aqui se a fatura tiver juros — não precisa ser o valor total dividido certinho."
+                  value={form.installmentValue}
+                  onValueChange={(v) => setForm({ ...form, installmentValue: v })}
+                  required
                 />
-                <span className="text-sm text-[var(--color-ink-soft)]">vezes</span>
-                {installmentPreview !== null && (
-                  <span className="ml-auto text-sm font-medium text-[var(--color-ink)]">
-                    {form.installments}x de {formatCurrency(installmentPreview)}
-                  </span>
+                {form.installments && form.installmentValue && (
+                  <p className="text-xs text-[var(--color-ink-faint)]">
+                    Total: {form.installments}x de {formatCurrency(form.installmentValue)} = {formatCurrency(roundCurrency(form.installmentValue * Number(form.installments)))}
+                  </p>
                 )}
               </div>
             ) : (
@@ -289,12 +372,33 @@ export function Cartoes() {
             type="submit"
             size="lg"
             full
-            disabled={!form.amount || !form.description.trim() || (form.isInstallment && !form.installments)}
+            disabled={
+              (!form.isInstallment && !form.amount) ||
+              !form.description.trim() ||
+              (form.isInstallment && (!form.installments || !form.installmentValue))
+            }
           >
-            Salvar compra
+            {editingPurchaseId ? 'Salvar alterações' : 'Salvar compra'}
           </Button>
         </form>
       </Sheet>
+
+      <ConfirmDialog
+        open={!!pendingDeletePurchase}
+        title="Remover compra?"
+        description={
+          pendingDeletePurchase && pendingDeletePurchase.totalInstallments > 1
+            ? 'Isso remove o parcelamento inteiro (todas as parcelas, passadas e futuras).'
+            : 'Essa ação não pode ser desfeita.'
+        }
+        confirmLabel="Remover"
+        onConfirm={() => {
+          if (pendingDeletePurchase) removeCardPurchase(pendingDeletePurchase.id);
+          showToast('Compra removida');
+          setPendingDeletePurchase(null);
+        }}
+        onCancel={() => setPendingDeletePurchase(null)}
+      />
     </div>
   );
 }

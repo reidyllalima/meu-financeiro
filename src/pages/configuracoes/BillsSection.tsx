@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Plus, Trash2, ReceiptText } from 'lucide-react';
+import { Plus, Trash2, Pencil, ReceiptText } from 'lucide-react';
 import { Panel } from '../../components/ui/Panel';
 import { Button } from '../../components/ui/Button';
 import { Sheet } from '../../components/ui/Sheet';
@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useStore } from '../../store/useStore';
 import { useUiStore } from '../../store/useUiStore';
 import { formatCurrency, formatMonthLabel, todayMonthKey } from '../../lib/calc';
+import type { Bill } from '../../types';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -30,21 +31,42 @@ export function BillsSection() {
   const showToast = useUiStore((s) => s.showToast);
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(() => emptyForm(categories[0]?.id ?? ''));
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const years = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   function openCreate() {
+    setEditingId(null);
     setForm(emptyForm(categories[0]?.id ?? ''));
+    setSheetOpen(true);
+  }
+
+  function openEdit(bill: Bill) {
+    setEditingId(bill.id);
+    setForm({
+      description: bill.description,
+      amount: bill.amount,
+      categoryId: bill.categoryId,
+      recurring: bill.recurring,
+      active: bill.active,
+      month: bill.month ?? todayMonthKey().month,
+      year: bill.year ?? todayMonthKey().year,
+    });
     setSheetOpen(true);
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.description.trim() || form.amount <= 0) return;
-    addBill(form);
-    showToast('Conta cadastrada');
+    if (editingId) {
+      updateBill(editingId, form);
+      showToast('Conta atualizada');
+    } else {
+      addBill(form);
+      showToast('Conta cadastrada');
+    }
     setSheetOpen(false);
   }
 
@@ -77,8 +99,16 @@ export function BillsSection() {
                 <div className="flex items-center gap-3">
                   {bill.recurring && <Toggle checked={bill.active} onChange={(v) => updateBill(bill.id, { active: v })} />}
                   <button
+                    onClick={() => openEdit(bill)}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100"
+                    aria-label="Editar conta"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => setPendingDeleteId(bill.id)}
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                    aria-label="Remover conta"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -89,7 +119,7 @@ export function BillsSection() {
         </Panel>
       )}
 
-      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Nova conta">
+      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={editingId ? 'Editar conta' : 'Nova conta'}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <TextField
             label="Descrição"
@@ -120,7 +150,7 @@ export function BillsSection() {
             </div>
           )}
           <Button type="submit" size="lg" full>
-            Cadastrar conta
+            {editingId ? 'Salvar alterações' : 'Cadastrar conta'}
           </Button>
         </form>
       </Sheet>

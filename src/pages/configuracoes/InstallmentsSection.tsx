@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Plus, Trash2, CalendarClock } from 'lucide-react';
+import { Plus, Trash2, Pencil, CalendarClock } from 'lucide-react';
 import { Panel } from '../../components/ui/Panel';
 import { Button } from '../../components/ui/Button';
 import { Sheet } from '../../components/ui/Sheet';
@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useStore } from '../../store/useStore';
 import { useUiStore } from '../../store/useUiStore';
 import { formatCurrency, roundCurrency, todayISODate, todayMonthKey } from '../../lib/calc';
+import type { CardPurchase } from '../../types';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -36,19 +37,37 @@ export function InstallmentsSection() {
   const categories = useStore((s) => s.categories);
   const cardPurchases = useStore((s) => s.cardPurchases);
   const addCardPurchase = useStore((s) => s.addCardPurchase);
+  const updateCardPurchase = useStore((s) => s.updateCardPurchase);
   const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
 
   const plans = cardPurchases.filter((p) => p.totalInstallments > 1);
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(() => emptyForm(NO_CARD, categories[0]?.id ?? ''));
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const years = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   function openCreate() {
+    setEditingId(null);
     setForm(emptyForm(NO_CARD, categories[0]?.id ?? ''));
+    setSheetOpen(true);
+  }
+
+  function openEdit(purchase: CardPurchase) {
+    setEditingId(purchase.id);
+    setForm({
+      description: purchase.description,
+      cardId: purchase.cardId ?? NO_CARD,
+      categoryId: purchase.categoryId,
+      installmentValue: purchase.installmentValue,
+      totalInstallments: purchase.totalInstallments,
+      anchorInstallmentNumber: purchase.anchorInstallmentNumber,
+      anchorMonth: purchase.anchorMonth,
+      anchorYear: purchase.anchorYear,
+    });
     setSheetOpen(true);
   }
 
@@ -59,19 +78,34 @@ export function InstallmentsSection() {
     const totalInstallments = Number(form.totalInstallments);
     const anchorInstallmentNumber = Number(form.anchorInstallmentNumber);
 
-    addCardPurchase({
-      description: form.description.trim(),
-      cardId: form.cardId || undefined,
-      categoryId: form.categoryId,
-      installmentValue: form.installmentValue,
-      totalAmount: roundCurrency(form.installmentValue * totalInstallments),
-      totalInstallments,
-      anchorInstallmentNumber,
-      anchorMonth: form.anchorMonth,
-      anchorYear: form.anchorYear,
-      purchaseDate: todayISODate(),
-    });
-    showToast('Parcelamento cadastrado');
+    if (editingId) {
+      updateCardPurchase(editingId, {
+        description: form.description.trim(),
+        cardId: form.cardId || undefined,
+        categoryId: form.categoryId,
+        installmentValue: form.installmentValue,
+        totalAmount: roundCurrency(form.installmentValue * totalInstallments),
+        totalInstallments,
+        anchorInstallmentNumber,
+        anchorMonth: form.anchorMonth,
+        anchorYear: form.anchorYear,
+      });
+      showToast('Parcelamento atualizado');
+    } else {
+      addCardPurchase({
+        description: form.description.trim(),
+        cardId: form.cardId || undefined,
+        categoryId: form.categoryId,
+        installmentValue: form.installmentValue,
+        totalAmount: roundCurrency(form.installmentValue * totalInstallments),
+        totalInstallments,
+        anchorInstallmentNumber,
+        anchorMonth: form.anchorMonth,
+        anchorYear: form.anchorYear,
+        purchaseDate: todayISODate(),
+      });
+      showToast('Parcelamento cadastrado');
+    }
     setSheetOpen(false);
   }
 
@@ -107,12 +141,22 @@ export function InstallmentsSection() {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <p className="text-sm font-semibold text-[var(--color-ink)]">{formatCurrency(p.installmentValue)}</p>
-                  <button
-                    onClick={() => setPendingDeleteId(p.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-slate-100"
+                      aria-label="Editar parcelamento"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setPendingDeleteId(p.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-ink-faint)] hover:bg-red-50 hover:text-[var(--color-danger-500)]"
+                      aria-label="Remover parcelamento"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -120,7 +164,7 @@ export function InstallmentsSection() {
         </Panel>
       )}
 
-      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Novo parcelamento existente">
+      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={editingId ? 'Editar parcelamento' : 'Novo parcelamento existente'}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <TextField
             label="Nome da compra"
@@ -182,7 +226,7 @@ export function InstallmentsSection() {
             Total estimado: {formatCurrency(roundCurrency(form.installmentValue * (Number(form.totalInstallments) || 0)))}
           </p>
           <Button type="submit" size="lg" full>
-            Cadastrar parcelamento
+            {editingId ? 'Salvar alterações' : 'Cadastrar parcelamento'}
           </Button>
         </form>
       </Sheet>
