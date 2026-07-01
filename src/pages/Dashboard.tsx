@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, CheckCircle2, ChevronRight, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Plus, Trash2, Wallet, TrendingDown, TrendingUp, Banknote, QrCode, CreditCard as CreditCardIcon } from 'lucide-react';
 import { Panel } from '../components/ui/Panel';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { MonthSwitcher } from '../components/ui/MonthSwitcher';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Sheet } from '../components/ui/Sheet';
+import { Button } from '../components/ui/Button';
+import { MoneyInput, TextField } from '../components/ui/fields';
 import { useStore } from '../store/useStore';
 import { useUiStore } from '../store/useUiStore';
 import {
@@ -51,9 +54,28 @@ export function Dashboard() {
   const bills = useStore((s) => s.bills);
   const categories = useStore((s) => s.categories);
   const overdraftBalance = useStore((s) => s.settings.overdraftBalance);
+  const addIncome = useStore((s) => s.addIncome);
   const removeExpense = useStore((s) => s.removeExpense);
   const removeCardPurchase = useStore((s) => s.removeCardPurchase);
   const showToast = useUiStore((s) => s.showToast);
+
+  const [extraBalanceOpen, setExtraBalanceOpen] = useState(false);
+  const [extraBalanceForm, setExtraBalanceForm] = useState({ description: '', amount: '' as number | '' });
+
+  function handleAddExtraBalance(e: FormEvent) {
+    e.preventDefault();
+    if (!extraBalanceForm.description.trim() || !extraBalanceForm.amount || extraBalanceForm.amount <= 0) return;
+    addIncome({
+      description: extraBalanceForm.description.trim(),
+      amount: extraBalanceForm.amount,
+      recurring: false,
+      month: month.month,
+      year: month.year,
+    });
+    showToast('Saldo adicionado');
+    setExtraBalanceForm({ description: '', amount: '' });
+    setExtraBalanceOpen(false);
+  }
 
   const upcomingForecast = useMemo(
     () => buildForecast(incomes, cardPurchases, bills, FORECAST_MONTHS_AHEAD, addMonthsToKey(todayMonthKey(), 1)),
@@ -183,6 +205,12 @@ export function Dashboard() {
             <p className="mt-0.5 text-[15px] font-semibold">{formatCurrency(totalSpent)}</p>
           </div>
         </div>
+        <button
+          onClick={() => setExtraBalanceOpen(true)}
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/10 py-2 text-sm font-medium text-white hover:bg-white/15"
+        >
+          <Plus className="h-4 w-4" /> Adicionar saldo
+        </button>
       </Panel>
 
       <Panel>
@@ -318,6 +346,31 @@ export function Dashboard() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
+
+      <Sheet open={extraBalanceOpen} onClose={() => setExtraBalanceOpen(false)} title={`Adicionar saldo · ${formatMonthLabel(month)}`}>
+        <form onSubmit={handleAddExtraBalance} className="flex flex-col gap-4">
+          <p className="text-sm text-[var(--color-ink-faint)]">
+            Dinheiro que você recebeu fora do salário — um freela, um presente, um reembolso — e que entra como saldo deste mês.
+          </p>
+          <TextField
+            label="Descrição"
+            placeholder="Ex: Freela do site, Presente do meu pai..."
+            value={extraBalanceForm.description}
+            onChange={(e) => setExtraBalanceForm({ ...extraBalanceForm, description: e.target.value })}
+            autoFocus
+            required
+          />
+          <MoneyInput
+            label="Valor"
+            value={extraBalanceForm.amount}
+            onValueChange={(v) => setExtraBalanceForm({ ...extraBalanceForm, amount: v })}
+            required
+          />
+          <Button type="submit" size="lg" full disabled={!extraBalanceForm.description.trim() || !extraBalanceForm.amount}>
+            Adicionar
+          </Button>
+        </form>
+      </Sheet>
     </div>
   );
 }

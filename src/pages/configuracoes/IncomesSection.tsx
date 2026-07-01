@@ -68,7 +68,7 @@ export function IncomesSection() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold text-[var(--color-ink)]">Receitas</h2>
-          <p className="text-xs text-[var(--color-ink-faint)]">Salário e outras rendas</p>
+          <p className="text-xs text-[var(--color-ink-faint)]">Salário e outros saldos (freelas, presentes, reembolsos...)</p>
         </div>
         <Button size="sm" variant="secondary" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Nova
