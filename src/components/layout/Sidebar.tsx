@@ -8,12 +8,12 @@ export function Sidebar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-[var(--color-surface)] px-4 py-6 md:flex">
-      <div className="mb-8 flex items-center gap-2 px-2">
+      <NavLink to="/" className="mb-8 flex items-center gap-2 px-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-brand-500)]">
           <Wallet className="h-5 w-5 text-white" />
         </div>
         <span className="text-[16px] font-semibold text-[var(--color-ink)]">Meu Financeiro</span>
-      </div>
+      </NavLink>
 
       <button
         onClick={openQuickAdd}
@@ -44,7 +44,7 @@ export function Sidebar() {
       </nav>
 
       <p className="px-2 text-[11px] text-[var(--color-ink-faint)]">
-        Seus dados ficam só neste dispositivo. Nenhuma informação é enviada para a internet.
+        Seus dados ficam salvos na nuvem, sincronizados com a sua conta.
       </p>
     </aside>
   );
