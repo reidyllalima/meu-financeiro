@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 const baseFieldClass =
   'w-full rounded-xl border-0 bg-slate-100 px-3.5 py-3 text-[15px] text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] outline-none ring-1 ring-inset ring-transparent focus:ring-2 focus:ring-[var(--color-brand-500)] focus:bg-white transition-colors';
@@ -72,6 +72,27 @@ export function TextAreaField({ label, hint, error, className = '', required, ..
   );
 }
 
+/** Só dígitos e uma vírgula (até 2 casas), sem sinal — equivalente ao "min=0" que tínhamos no input number. */
+function sanitizeMoneyText(raw: string): string {
+  const cleaned = raw.replace(/[^0-9,]/g, '');
+  const commaIndex = cleaned.indexOf(',');
+  if (commaIndex === -1) return cleaned;
+  const intPart = cleaned.slice(0, commaIndex);
+  const decPart = cleaned.slice(commaIndex + 1).replace(/,/g, '').slice(0, 2);
+  return `${intPart},${decPart}`;
+}
+
+function parseMoneyText(text: string): number {
+  if (text === '' || text === ',') return 0;
+  const parsed = parseFloat(text.replace(',', '.'));
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function formatMoneyText(value: number | ''): string {
+  if (value === '') return '';
+  return String(value).replace('.', ',');
+}
+
 export function MoneyInput({
   label,
   hint,
@@ -87,6 +108,19 @@ export function MoneyInput({
   onValueChange: (v: number) => void;
   required?: boolean;
 }) {
+  const [text, setText] = useState(() => formatMoneyText(value));
+  const lastEmitted = useRef(value);
+
+  // Só resincroniza quando `value` muda por fora (ex: editar um lançamento existente,
+  // limpar o formulário depois de salvar) — nunca por causa da própria digitação, senão
+  // a vírgula digitada seria descartada a cada re-render (o input "limpava" o valor).
+  useEffect(() => {
+    if (value !== lastEmitted.current) {
+      setText(formatMoneyText(value));
+      lastEmitted.current = value;
+    }
+  }, [value]);
+
   return (
     <FieldWrapper label={label} hint={hint} error={error} required={required}>
       <div className="relative">
@@ -95,13 +129,17 @@ export function MoneyInput({
         </span>
         <input
           inputMode="decimal"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
           className={`${baseFieldClass} pl-10`}
-          value={value}
+          value={text}
           required={required}
-          onChange={(e) => onValueChange(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+          onChange={(e) => {
+            const sanitized = sanitizeMoneyText(e.target.value);
+            setText(sanitized);
+            const parsed = parseMoneyText(sanitized);
+            lastEmitted.current = parsed;
+            onValueChange(parsed);
+          }}
           placeholder="0,00"
         />
       </div>
