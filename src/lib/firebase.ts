@@ -18,4 +18,5 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const db = initializeFirestore(firebaseApp, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  ignoreUndefinedProperties: true,
 });
