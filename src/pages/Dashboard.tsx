@@ -139,14 +139,9 @@ export function Dashboard() {
   const monthCardOccurrences = useMemo(() => cardOccurrencesForMonth(cardPurchases, month), [cardPurchases, month]);
   const monthBills = useMemo(() => billsForMonth(bills, month), [bills, month]);
 
-  const totalSpent = useMemo(
-    () =>
-      monthExpenses.reduce((s, e) => s + e.amount, 0) +
-      monthCardOccurrences.reduce((s, o) => s + o.value, 0) +
-      monthBills.reduce((s, b) => s + b.amount, 0),
-    [monthExpenses, monthCardOccurrences, monthBills],
-  );
-
+  // Só as contas já pagas saem do saldo — contas pendentes ficam de fora até serem
+  // marcadas como pagas, para não confundir com o desconto do cheque especial (que reflete
+  // gasto real em Pix/Débito, não compromisso futuro) nem com parcelas de cartão do mês.
   const billsPaidTotal = useMemo(
     () => monthBills.filter((b) => isBillPaidForMonth(b, month)).reduce((s, b) => s + b.amount, 0),
     [monthBills, month],
@@ -154,6 +149,14 @@ export function Dashboard() {
   const billsPendingTotal = useMemo(
     () => monthBills.reduce((s, b) => s + b.amount, 0) - billsPaidTotal,
     [monthBills, billsPaidTotal],
+  );
+
+  const totalSpent = useMemo(
+    () =>
+      monthExpenses.reduce((s, e) => s + e.amount, 0) +
+      monthCardOccurrences.reduce((s, o) => s + o.value, 0) +
+      billsPaidTotal,
+    [monthExpenses, monthCardOccurrences, billsPaidTotal],
   );
 
   const balance = income - totalSpent;
