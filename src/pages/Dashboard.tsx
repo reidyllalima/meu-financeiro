@@ -15,6 +15,7 @@ import { useUiStore } from '../store/useUiStore';
 import {
   addMonthsToKey,
   bankExpensesForMonth,
+  billsForMonth,
   buildForecast,
   cardOccurrencesForMonth,
   categoryTotalsForMonth,
@@ -24,6 +25,7 @@ import {
   formatDateBR,
   formatMonthLabel,
   formatPercent,
+  isBillPaidForMonth,
   sameMonthKey,
   todayMonthKey,
 } from '../lib/calc';
@@ -135,10 +137,23 @@ export function Dashboard() {
 
   const monthExpenses = useMemo(() => expensesForMonth(expenses, month), [expenses, month]);
   const monthCardOccurrences = useMemo(() => cardOccurrencesForMonth(cardPurchases, month), [cardPurchases, month]);
+  const monthBills = useMemo(() => billsForMonth(bills, month), [bills, month]);
 
   const totalSpent = useMemo(
-    () => monthExpenses.reduce((s, e) => s + e.amount, 0) + monthCardOccurrences.reduce((s, o) => s + o.value, 0),
-    [monthExpenses, monthCardOccurrences],
+    () =>
+      monthExpenses.reduce((s, e) => s + e.amount, 0) +
+      monthCardOccurrences.reduce((s, o) => s + o.value, 0) +
+      monthBills.reduce((s, b) => s + b.amount, 0),
+    [monthExpenses, monthCardOccurrences, monthBills],
+  );
+
+  const billsPaidTotal = useMemo(
+    () => monthBills.filter((b) => isBillPaidForMonth(b, month)).reduce((s, b) => s + b.amount, 0),
+    [monthBills, month],
+  );
+  const billsPendingTotal = useMemo(
+    () => monthBills.reduce((s, b) => s + b.amount, 0) - billsPaidTotal,
+    [monthBills, billsPaidTotal],
   );
 
   const balance = income - totalSpent;
@@ -231,6 +246,11 @@ export function Dashboard() {
           <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-300">
             <Landmark className="h-3.5 w-3.5 shrink-0" />
             {formatCurrency(overdraftUsedThisMonth)} em Pix/Débito entraram no cheque especial este mês — será descontado da renda do mês que vem
+          </p>
+        )}
+        {(billsPaidTotal > 0 || billsPendingTotal > 0) && (
+          <p className="mt-1 text-xs text-white/60">
+            Contas do mês: {formatCurrency(billsPaidTotal)} já pagas · {formatCurrency(billsPendingTotal)} a pagar
           </p>
         )}
         <div className="mt-4 grid grid-cols-2 gap-4">
